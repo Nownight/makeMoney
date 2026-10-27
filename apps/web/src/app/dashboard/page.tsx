@@ -1,11 +1,11 @@
 import {
-  CircleAlert,
   FileText,
   Layers,
   Sparkles,
   Wallet,
 } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CreateReportForm } from "@/components/reports/create-report-form";
 import { getCurrentUser } from "@/lib/auth/session";
+import { reportStatusLabel, reportStatusVariant } from "@/lib/reports/status";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -31,6 +33,13 @@ type DashboardPageProps = {
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   dateStyle: "medium",
 });
+
+const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const RECENT_REPORTS_LIMIT = 20;
 
 function StatCard({
   label,
@@ -67,11 +76,16 @@ export default async function DashboardPage({
   }
 
   const [{ q }, supabase] = await Promise.all([searchParams, createClient()]);
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: reports }, { count: reportCount }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("reports")
+        .select("id, query, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(RECENT_REPORTS_LIMIT),
+      supabase.from("reports").select("id", { count: "exact", head: true }),
+    ]);
 
   const query = q?.trim().slice(0, 120) ?? "";
   const plan = profile?.plan ?? "free";
@@ -101,20 +115,17 @@ export default async function DashboardPage({
         </Badge>
       </div>
 
-      {query ? (
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
-        >
-          <CircleAlert className="mt-0.5 size-4 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">研究引擎即将开放</p>
-            <p className="text-[13px] opacity-90">
-              已记录你的主题「{query}」。当前版本已完成账号与权限体系，搜索、数据提取与报告生成将在下一阶段接入。
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle>发起新研究</CardTitle>
+          <CardDescription>
+            输入产品、公司、工具或服务主题，创建一份研究报告。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CreateReportForm defaultQuery={query} maxSourceLimit={sourceLimit} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -125,8 +136,8 @@ export default async function DashboardPage({
         />
         <StatCard
           label="报告数量"
-          value="0"
-          hint="完成的报告会出现在这里"
+          value={String(reportCount ?? 0)}
+          hint="你创建的全部报告"
           icon={FileText}
         />
         <StatCard
@@ -152,15 +163,40 @@ export default async function DashboardPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 px-6 py-10 text-center">
-              <span className="mb-4 grid size-11 place-items-center rounded-full bg-background ring-1 ring-border">
-                <FileText className="size-5 text-muted-foreground" />
-              </span>
-              <p className="text-sm font-medium">还没有研究报告</p>
-              <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                报告生成能力将在下一阶段开放。届时输入一个主题，即可自动完成搜索、提取、分析与可视化。
-              </p>
-            </div>
+            {reports && reports.length > 0 ? (
+              <ul className="divide-y rounded-lg border">
+                {reports.map((report) => (
+                  <li key={report.id}>
+                    <Link
+                      href={`/report/${report.id}`}
+                      className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {report.query}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {dateTimeFormatter.format(new Date(report.created_at))}
+                        </p>
+                      </div>
+                      <Badge variant={reportStatusVariant(report.status)}>
+                        {reportStatusLabel(report.status)}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 px-6 py-10 text-center">
+                <span className="mb-4 grid size-11 place-items-center rounded-full bg-background ring-1 ring-border">
+                  <FileText className="size-5 text-muted-foreground" />
+                </span>
+                <p className="text-sm font-medium">还没有研究报告</p>
+                <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                  在上方输入一个主题，即可创建你的第一份研究报告。
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
