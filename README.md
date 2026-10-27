@@ -2,7 +2,7 @@
 
 输入一个研究主题，自动搜索多个可信网页、提取结构化数据、对比分析，并生成带来源引用的可视化研究报告。
 
-当前仓库处于 **Phase 1（项目框架 + 账号体系）**。后续阶段严格按 PRD 顺序推进，不一次性铺开全部功能。
+当前仓库已完成 **Phase 2（Report 创建与历史）**。后续阶段严格按 PRD 顺序推进，不一次性铺开全部功能。
 
 ---
 
@@ -11,7 +11,7 @@
 | Phase | 内容 | 状态 |
 | --- | --- | --- |
 | 1 | Next.js / Tailwind / shadcn / Supabase Auth / 登录注册 | ✅ 代码与自动化检查完成，待真实 Supabase 实例做端到端验证 |
-| 2 | 创建 Report、Dashboard 历史列表 | ⬜ 下一阶段 |
+| 2 | 创建 Report、Dashboard 历史列表 | ✅ 代码与自动化检查完成，需在 Supabase 执行 migration |
 | 3 | ScrapeGraphAI Search + Source 落库 | ⬜ |
 | 4 | ScrapeGraphAI Extract + Zod 校验 | ⬜ |
 | 5 | LLM 结构化分析 | ⬜ |
@@ -247,14 +247,15 @@ research-saas/
 
 ---
 
-## 下一步（Phase 2）
+## Phase 2（已完成）
 
-严格限定在：
+- `supabase/migrations/20261027010000_create_reports.sql`：`reports` 表、索引、RLS（只能读 / 插入自己的行）、列级 GRANT（浏览器只能写 `user_id`、`query`、`source_limit`、`language`；无 update/delete）。
+- `POST /api/reports`：需登录（否则 401）；Zod 校验 `{ query: 1..200, sourceLimit: 5|10|20 = 5, language? }`；创建 `queued` 报告并返回 `201 { id, status }`。
+- **Free 计划来源上限**：服务端按 `profiles.plan` 把 `sourceLimit` **静默收敛为 5**（不报错），Pro 保留请求值。
+- Dashboard 搜索表单（Server Action，与 API 共用 `lib/reports/create.ts`）→ 跳转 `/report/[id]`；最近报告列表与报告数量。
+- `/report/[id]`：登录保护，RLS 读取，他人或不存在的报告返回 404；展示主题、状态、进度、创建时间。
+- 本阶段**不扣额度、不执行研究**。
 
-- `reports` 表与 RLS migration
-- `POST /api/reports`：创建 `queued` 报告并写入数据库
-- Dashboard 报告列表 + 报告详情壳
-- `/report/[id]` 初始状态页
-- 仍使用 Supabase 作为唯一数据源
+## 下一步（Phase 3）
 
-在 Phase 2 完成并跑通测试前，不接入 ScrapeGraphAI、不写图表、不接支付。
+ScrapeGraphAI Search + `sources` 落库。

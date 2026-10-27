@@ -1,6 +1,6 @@
 # 架构说明
 
-本文描述研图 AI 的整体架构、阶段边界与安全不变量。Phase 1 只实现账号体系与项目骨架，后续阶段按路线图逐段补齐。
+本文描述研图 AI 的整体架构、阶段边界与安全不变量。Phase 1 实现账号体系与项目骨架，Phase 2 增加 reports 创建与历史，后续阶段按路线图逐段补齐。
 
 ---
 
@@ -147,6 +147,15 @@ profiles (
 4. `anon` 对 `profiles` 没有任何权限。
 5. 所有服务端授权判断都基于 `auth.getClaims()`，不信任前端传入的用户 ID。
 
+### 4.6 数据模型（Phase 2）
+
+`reports` 见 `supabase/migrations/20261027010000_create_reports.sql`。安全不变量：
+
+1. 用户只能 `SELECT` 自己的 report；只能 `INSERT` `user_id = auth.uid()` 的行，且只能写 `user_id`、`query`、`source_limit`、`language` 列。
+2. `status`、`progress`、结果字段与 `is_paid` 只由 service role（后续 worker）写入；客户端无 update/delete。
+3. Free 计划的 `source_limit` 由服务端收敛为 5。
+4. `POST /api/reports` 与 Dashboard Server Action 共用 `createReportForCurrentUser()`。
+
 ---
 
 ## 5. 后续阶段的数据流（设计约束）
@@ -199,7 +208,7 @@ Worker
 | 构建 | `next build` | App Router 路由、Server/Client 边界、环境变量 |
 | 端到端 | 待接入 Playwright | 真实 Supabase 注册 / 登录 / 重置密码 |
 
-Phase 1 的 47 个单元测试集中在纯函数与边界条件，避免依赖网络或数据库。
+Phase 1–2 的 73 个单元测试集中在纯函数与边界条件，避免依赖网络或数据库。
 
 ---
 
