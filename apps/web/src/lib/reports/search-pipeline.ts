@@ -4,6 +4,7 @@ import {
   type FilteredSource,
 } from "@research/scrapegraph";
 
+import { runAnalysis } from "@/lib/reports/analyze-pipeline";
 import { runExtraction } from "@/lib/reports/extract-pipeline";
 import { logError, logEvent } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,9 +26,9 @@ type ReportForSearch = {
  * Temporary synchronous pipeline until the Phase 7 worker exists.
  *
  * queued -> searching (10) -> extracting (20..65) -> normalizing (70) ->
- * back to queued (70), i.e. "waiting for analysis" (Phase 5).
- * On search API error, < 2 usable sources or no source extracted:
- * failed + error_message.
+ * analyzing (80) -> completed (100).
+ * On search API error, < 2 usable sources, no source extracted or analysis
+ * failure: failed + error_message (saved sources/items are kept).
  *
  * Never throws: every failure is recorded on the report and logged.
  */
@@ -128,8 +129,5 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
     return;
   }
 
-  await admin
-    .from("reports")
-    .update({ status: "queued", progress: 70 })
-    .eq("id", report.id);
+  await runAnalysis(admin, report);
 }

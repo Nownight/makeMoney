@@ -15,7 +15,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "try-search": "pnpm --filter @research/web try-search",
-    "try-extract": "pnpm --filter @research/web try-extract"
+    "try-extract": "pnpm --filter @research/web try-extract",
+    "try-analyze": "pnpm --filter @research/web try-analyze"
   },
   "devDependencies": {
     "supabase": "^2.122.0"

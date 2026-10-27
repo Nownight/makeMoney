@@ -278,6 +278,15 @@ research-saas/
 - `/report/[id]` 展示产品概览表、来源状态和“成功分析 X / Y 个来源”。
 - 本地验证真实提取：`pnpm try-extract https://cursor.com/pricing`（不写数据库）。
 
-## 下一步（Phase 5）
+## Phase 5：LLM 分析
 
-AI 分析。
+- `packages/llm`：`LLMProvider` 接口 + `OpenAICompatibleProvider`（纯 fetch 调用 Chat Completions），兼容 OpenAI、DeepSeek 与中转。`response_format: {type: "json_object"}`，JSON 结构写在 prompt 中，Zod 校验失败或非 JSON 时把错误反馈给模型重试最多 2 次（2s / 5s），超时 120s。
+- 输入仅为归一化后的提取数据（含 itemId / sourceId / sourceUrl / domain），prompt 声明数据不可信、不得编造、主观判断需标注，语言跟随 `reports.language`（默认 zh-CN）。
+- 校验后移除排名 / 图表中不存在的 itemId，并追加 warning。
+- 同步流程：`… → normalizing(70%) → analyzing(80%) → completed(100%)`，写入 `title`（为空时）、`executive_summary`、`analysis_json`、`completed_at`。未配置或失败则 `failed`，已提取的数据保留。图表规格已保存，渲染在 Phase 6。
+- 环境变量：`LLM_BASE_URL`（默认 `https://api.openai.com/v1`）、`OPENAI_API_KEY`、`ANALYSIS_MODEL`（必填）。
+- 本地验证中转：`pnpm try-analyze`（使用示例数据，不写数据库）。
+
+## 下一步（Phase 6）
+
+图表渲染与报告可视化。

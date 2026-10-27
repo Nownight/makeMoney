@@ -1,4 +1,5 @@
 import { ArrowLeft, CircleAlert, Clock, ExternalLink } from "lucide-react";
+import { reportAnalysisSchema } from "@research/llm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -52,7 +53,7 @@ export default async function ReportPage({
   const supabase = await createClient();
   const { data: report } = await supabase
     .from("reports")
-    .select("id, query, status, progress, source_limit, error_message, created_at")
+    .select("id, query, title, status, progress, source_limit, error_message, executive_summary, analysis_json, created_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -78,6 +79,9 @@ export default async function ReportPage({
   const extractedCount = sources?.filter((s) => s.status === "extracted").length ?? 0;
   const extractionDone = sources?.some((s) => s.status !== "found") ?? false;
   const progress = clampProgress(report.progress);
+  const parsedAnalysis = reportAnalysisSchema.safeParse(report.analysis_json);
+  const analysis = parsedAnalysis.success ? parsedAnalysis.data : null;
+  const productNames = new Map(products.map((product) => [product.id, product.name]));
 
   return (
     <div className="space-y-6">
@@ -92,7 +96,7 @@ export default async function ReportPage({
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-3">
-            <CardTitle className="text-xl">{report.query}</CardTitle>
+            <CardTitle className="text-xl">{report.title ?? report.query}</CardTitle>
             <Badge variant={reportStatusVariant(report.status)}>
               {reportStatusLabel(report.status)}
             </Badge>
@@ -133,8 +137,10 @@ export default async function ReportPage({
             </div>
           ) : (
             <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              {extractionDone
-                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源。数据已提取并归一化，等待分析阶段（即将上线）。`
+              {report.status === "completed"
+                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源。图表可视化即将上线。`
+                : extractionDone
+                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源，正在进行 AI 分析…`
                 : sourceCount > 0
                   ? "来源已就绪，正在提取结构化数据…"
                   : "报告已创建并进入队列。来源搜索完成后会在此页面展示。"}
@@ -142,6 +148,48 @@ export default async function ReportPage({
           )}
         </CardContent>
       </Card>
+
+      {analysis ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>分析摘要</CardTitle>
+              <Badge variant="secondary">AI 生成</Badge>
+            </div>
+            <CardDescription>基于提取的数据自动生成，请结合来源核实。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 text-sm">
+            <p className="leading-relaxed">{report.executive_summary ?? analysis.executiveSummary}</p>
+
+            <AnalysisList title="关键发现" items={analysis.keyFindings} />
+
+            {analysis.rankings.length > 0 ? (
+              <section className="space-y-3">
+                <h3 className="font-medium">排名</h3>
+                {analysis.rankings.map((ranking, index) => (
+                  <div key={`${ranking.title}-${index}`} className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{ranking.title}</span>
+                      <span className="text-xs text-muted-foreground">（{ranking.metric}）</span>
+                      {ranking.isSubjective ? <Badge variant="outline">AI 分析</Badge> : null}
+                    </div>
+                    <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
+                      {ranking.items.map((item) => (
+                        <li key={item.itemId}>
+                          {productNames.get(item.itemId) ?? "未知条目"}：{item.value}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </section>
+            ) : null}
+
+            <AnalysisList title="结论" items={analysis.conclusions} />
+            <AnalysisList title="注意事项" items={analysis.warnings} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {products.length > 0 ? (
         <Card>
@@ -239,5 +287,19 @@ export default async function ReportPage({
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function AnalysisList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <h3 className="font-medium">{title}</h3>
+      <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </section>
   );
 }

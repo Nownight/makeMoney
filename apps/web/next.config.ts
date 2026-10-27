@@ -14,7 +14,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Workspace package ships TypeScript source.
-  transpilePackages: ["@research/scrapegraph"],
+  transpilePackages: ["@research/llm", "@research/scrapegraph"],
   turbopack: {
     // Pin the workspace root so Turbopack does not watch unrelated folders
     // (a stray package-lock.json in D:\codex_repo made it pick that as root).

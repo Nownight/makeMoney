@@ -159,6 +159,7 @@ profiles (
 ### 4.7 来源搜索（Phase 3）
 
 - `packages/scrapegraph` 是唯一调用 ScrapeGraphAI 的地方（Web 与未来的 Worker 共用），响应先经 Zod 校验。
+- `packages/llm` 是唯一调用 LLM 的地方：`LLMProvider.analyze()` 只有一个实现 `OpenAICompatibleProvider`（`POST {LLM_BASE_URL}/chat/completions`，`response_format: json_object`，不依赖 json_schema strict），兼容 OpenAI / DeepSeek / 中转。输入只包含归一化后的 extracted_items（不含网页原文与密钥），输出经 `ReportAnalysisSchema` 校验，不合法时带错误反馈重试 2 次（2s / 5s），并移除不存在的 itemId。
 - `sources` 只允许读取父报告属于 `auth.uid()` 的行；所有写入走服务端 service role 客户端（`lib/supabase/admin.ts`）。
 - 状态：搜索成功后报告回到 `queued`（progress 20）等待提取，不引入新状态；失败为 `failed` + `error_message`。
 
@@ -214,7 +215,7 @@ Worker
 | 构建 | `next build` | App Router 路由、Server/Client 边界、环境变量 |
 | 端到端 | 待接入 Playwright | 真实 Supabase 注册 / 登录 / 重置密码 |
 
-Phase 1–4 的 135 个单元测试（web 82 + scrapegraph 53）集中在纯函数与边界条件，避免依赖网络或数据库。
+Phase 1–5 的 150 个单元测试（web 84 + scrapegraph 53 + llm 13）集中在纯函数与边界条件，避免依赖网络或数据库。
 
 ---
 
