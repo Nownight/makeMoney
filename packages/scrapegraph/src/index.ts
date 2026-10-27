@@ -25,7 +25,12 @@ export {
   type SearchResponse,
   type SearchResult,
 } from "./schema";
-export { extractOpportunities, type ExtractOpportunitiesResult } from "./extract-opportunities";
+export {
+  extractOpportunities,
+  type ExtractOpportunitiesResult,
+  type ExtractOptions,
+} from "./extract-opportunities";
+export { domainKeywords, isRelevantOpportunity } from "./relevance";
 export {
   normalizeBillingPeriod,
   normalizeCurrency,
@@ -39,6 +44,7 @@ export {
   type PricePeriod,
 } from "./normalize";
 export {
+  buildExtractionPrompt,
   EXTRACTION_JSON_SCHEMA,
   EXTRACTION_PROMPT,
   extractionResultSchema,

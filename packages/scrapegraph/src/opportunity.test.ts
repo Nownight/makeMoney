@@ -5,6 +5,7 @@ import {
   EXTRACTION_PROMPT,
   SCHEMA_VERSION,
   STRICT_EXTRACTION_PROMPT,
+  buildExtractionPrompt,
   extractionResultSchema,
   OPPORTUNITY_TYPE_LABELS,
   OPPORTUNITY_TYPES,
@@ -43,5 +44,19 @@ describe("OpportunitySchema", () => {
   it("has a Chinese label for every type", () => {
     for (const type of OPPORTUNITY_TYPES) expect(OPPORTUNITY_TYPE_LABELS[type]).toBeTruthy();
     expect(OPPORTUNITY_TYPE_LABELS.capital).toBe("资本动向");
+  });
+});
+
+describe("buildExtractionPrompt", () => {
+  it("matches the base prompts without a domain", () => {
+    expect(buildExtractionPrompt()).toBe(EXTRACTION_PROMPT);
+    expect(buildExtractionPrompt(null, true)).toBe(STRICT_EXTRACTION_PROMPT);
+  });
+
+  it("requires domain relevance when a domain is given", () => {
+    const prompt = buildExtractionPrompt("AI编程工具", true);
+    expect(prompt).toContain('"AI编程工具"');
+    expect(prompt).toMatch(/unrelated industries/);
+    expect(prompt).toMatch(/STRICT/);
   });
 });

@@ -72,4 +72,21 @@ describe("extractOpportunities blocked pages", () => {
     const { client } = clientWith({ opportunities: [validOpportunity] });
     expect((await extractOpportunities(client, "https://a.com")).status).toBe("extracted");
   });
+
+  it("scopes the prompt to the domain and drops irrelevant signals", async () => {
+    const offTopic = { ...validOpportunity, title: "AI 医疗影像融资", summary: "医疗", signals: [], evidence: [], targetAudience: [], monetization: [] };
+    const onTopic = { ...validOpportunity, title: "AI 编程助手发布" };
+    const { client, extract } = clientWith({ opportunities: [offTopic, onTopic] });
+    const result = await extractOpportunities(client, "https://a.com", { domain: "AI编程工具" });
+    expect(extract.mock.calls[0][0].prompt).toContain('"AI编程工具"');
+    expect(result).toMatchObject({ status: "extracted", irrelevant: 1 });
+    if (result.status === "extracted") expect(result.opportunities.map((o) => o.title)).toEqual(["AI 编程助手发布"]);
+  });
+
+  it("fills month-day dates from the reference date", async () => {
+    const { client } = clientWith({ opportunities: [{ ...validOpportunity, eventDate: "9月8日" }] });
+    const result = await extractOpportunities(client, "https://a.com", { referenceDate: new Date("2026-10-27T00:00:00Z") });
+    if (result.status === "extracted") expect(result.opportunities[0].eventDate).toBe("2026-09-08");
+    expect(result.status).toBe("extracted");
+  });
 });

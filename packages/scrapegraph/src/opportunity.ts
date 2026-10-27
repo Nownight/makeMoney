@@ -73,9 +73,27 @@ const BASE_PROMPT = [
 
 export const EXTRACTION_PROMPT = BASE_PROMPT;
 
-/** Used for the final attempt after a schema validation failure. */
-export const STRICT_EXTRACTION_PROMPT = [
-  BASE_PROMPT,
+const STRICT_SUFFIX = [
   "STRICT: Output must match the JSON schema exactly. Every field is required;",
   "use null or [] instead of omitting fields. type must be one of the listed enum values.",
 ].join("\n");
+
+/** Used for the final attempt after a schema validation failure. */
+export const STRICT_EXTRACTION_PROMPT = [BASE_PROMPT, STRICT_SUFFIX].join("\n");
+
+/**
+ * Prompt scoped to the user's domain: list/news pages often mix unrelated
+ * industries, so only signals relevant to the domain may be returned.
+ */
+export function buildExtractionPrompt(domain?: string | null, strict = false): string {
+  const topic = domain?.trim().replace(/\s+/g, " ").slice(0, 100);
+  const parts = [BASE_PROMPT];
+  if (topic) {
+    parts.push(
+      `- The user researches the domain "${topic}". Only return signals directly relevant to this domain.`,
+      "- Skip items about unrelated industries even if the page lists them (e.g. funding roundups covering many sectors).",
+    );
+  }
+  if (strict) parts.push(STRICT_SUFFIX);
+  return parts.join("\n");
+}

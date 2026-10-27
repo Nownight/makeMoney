@@ -1,20 +1,26 @@
 import { hasBlockedMarkers } from "./blocked";
 import { ScrapeGraphError, type ScrapeGraphClient } from "./client";
 import { normalizeOpportunity, type NormalizedOpportunity } from "./normalize";
-import {
-  EXTRACTION_JSON_SCHEMA,
-  EXTRACTION_PROMPT,
-  STRICT_EXTRACTION_PROMPT,
-  extractionResultSchema,
-} from "./opportunity";
+import { EXTRACTION_JSON_SCHEMA, buildExtractionPrompt, extractionResultSchema } from "./opportunity";
+import { isRelevantOpportunity } from "./relevance";
 
 export type ExtractOpportunitiesResult =
-  | { status: "extracted"; opportunities: NormalizedOpportunity[]; attempts: number }
+  | {
+      status: "extracted";
+      opportunities: NormalizedOpportunity[];
+      attempts: number;
+      /** Signals dropped by the domain relevance post-filter. */
+      irrelevant: number;
+    }
   | { status: "partial"; attempts: number; reason: string }
   | { status: "failed"; attempts: number; reason: string };
 
-/** Normal, normal again, then strict prompt (each call costs 5 credits). */
-const ATTEMPT_PROMPTS = [EXTRACTION_PROMPT, EXTRACTION_PROMPT, STRICT_EXTRACTION_PROMPT];
+export type ExtractOptions = {
+  /** User's domain: scopes the prompt and drives the relevance post-filter. */
+  domain?: string | null;
+  /** Report creation time, used to fill the year of month-day dates. */
+  referenceDate?: Date;
+};
 
 /**
  * Extracts opportunity signals from one URL. API/network failures (after the client's
@@ -23,10 +29,14 @@ const ATTEMPT_PROMPTS = [EXTRACTION_PROMPT, EXTRACTION_PROMPT, STRICT_EXTRACTION
 export async function extractOpportunities(
   client: ScrapeGraphClient,
   url: string,
+  options: ExtractOptions = {},
 ): Promise<ExtractOpportunitiesResult> {
   let attempts = 0;
+  // Normal, normal again, then strict prompt (each call costs 5 credits).
+  const normal = buildExtractionPrompt(options.domain);
+  const prompts = [normal, normal, buildExtractionPrompt(options.domain, true)];
 
-  for (const prompt of ATTEMPT_PROMPTS) {
+  for (const prompt of prompts) {
     attempts += 1;
     let json: unknown;
     let raw = "";
@@ -48,10 +58,14 @@ export async function extractOpportunities(
       return { status: "failed", attempts, reason: "page looks blocked (anti-bot or error page)" };
     }
     if (parsed.success) {
+      const all = parsed.data.opportunities.map((o) => normalizeOpportunity(o, options.referenceDate));
+      const domain = options.domain?.trim();
+      const opportunities = domain ? all.filter((o) => isRelevantOpportunity(o, domain)) : all;
       return {
         status: "extracted",
-        opportunities: parsed.data.opportunities.map(normalizeOpportunity),
+        opportunities,
         attempts,
+        irrelevant: all.length - opportunities.length,
       };
     }
   }
