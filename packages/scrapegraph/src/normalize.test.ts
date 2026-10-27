@@ -81,6 +81,31 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2026-02-30")).toBeNull();
     expect(normalizeDate("上周")).toBeNull();
   });
+
+  it("keeps the date part of datetimes", () => {
+    expect(normalizeDate("2026-07-15 12:07")).toBe("2026-07-15");
+    expect(normalizeDate("2026/07/15 12:07:30")).toBe("2026-07-15");
+  });
+
+  it("fills the year of month-day dates from the reference time", () => {
+    const reference = new Date("2026-10-27T12:00:00Z");
+    expect(normalizeDate("9月8日", reference)).toBe("2026-09-08");
+    expect(normalizeDate("9月8号 10:30", reference)).toBe("2026-09-08");
+    expect(normalizeDate("09-08", reference)).toBe("2026-09-08");
+    expect(normalizeDate("10月28日", reference)).toBe("2026-10-28");
+  });
+
+  it("uses the previous year when a month-day date would be in the future", () => {
+    const reference = new Date("2026-03-01T00:00:00Z");
+    expect(normalizeDate("12月20日", reference)).toBe("2025-12-20");
+    expect(normalizeDate("2月29日", reference)).toBeNull();
+  });
+
+  it("ignores month-day dates without a reference or when invalid", () => {
+    expect(normalizeDate("9月8日")).toBeNull();
+    expect(normalizeDate("13月8日", new Date("2026-10-27T00:00:00Z"))).toBeNull();
+    expect(normalizeDate("9月", new Date("2026-10-27T00:00:00Z"))).toBeNull();
+  });
 });
 
 describe("normalizeOpportunity", () => {

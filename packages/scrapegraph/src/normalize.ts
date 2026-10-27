@@ -104,19 +104,42 @@ function cleanNullable(value: string | null): string | null {
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-/**
- * Normalizes a date to YYYY-MM-DD, or null when unknown, partial (no day)
- * or invalid. Accepts ISO dates/datetimes, 2026/3/5, 2026.3.5, 2026年3月5日.
- */
-export function normalizeDate(text: string | null | undefined): string | null {
-  const match = text?.trim().match(/^(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?/);
-  if (!match) return null;
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+function validYmd(year: number, month: number, day: number): string | null {
   const date = new Date(Date.UTC(year, month - 1, day));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
     return null;
   }
   return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+const FULL_DATE = /^(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?/;
+const MONTH_DAY = /^(\d{1,2})\s*(?:月\s*(\d{1,2})\s*[日号]?|[-/.]\s*(\d{1,2}))(?![\d/.-])/;
+
+/**
+ * Normalizes a date to YYYY-MM-DD, or null when unknown, partial (no day)
+ * or invalid. Accepts ISO dates/datetimes, "2026-07-15 12:07", 2026/3/5,
+ * 2026.3.5, 2026年3月5日. Month-day only dates ("9月8日", "9-8") need a
+ * `reference` (report creation time): the year is taken from it, and the
+ * previous year is used when that would put the date in the future
+ * (with one day of slack for time zones).
+ */
+export function normalizeDate(text: string | null | undefined, reference?: Date): string | null {
+  const value = text?.trim();
+  if (!value) return null;
+
+  const full = value.match(FULL_DATE);
+  if (full) return validYmd(Number(full[1]), Number(full[2]), Number(full[3]));
+
+  const monthDay = reference ? value.match(MONTH_DAY) : null;
+  if (!monthDay || !reference || Number.isNaN(reference.getTime())) return null;
+  const month = Number(monthDay[1]);
+  const day = Number(monthDay[2] ?? monthDay[3]);
+  // One day of slack so time zones (e.g. UTC+8) never push "today" into last year.
+  const latest = new Date(reference.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const year = Number(latest.slice(0, 4));
+  const candidate = validYmd(year, month, day);
+  if (candidate && candidate <= latest) return candidate;
+  return validYmd(year - 1, month, day);
 }
 
 export const normalizedOpportunitySchema = z.object({
@@ -136,7 +159,10 @@ export type NormalizedOpportunity = z.infer<typeof normalizedOpportunitySchema>;
 
 const collapse = (value: string) => value.trim().replace(/\s+/g, " ");
 
-export function normalizeOpportunity(opportunity: Opportunity): NormalizedOpportunity {
+export function normalizeOpportunity(
+  opportunity: Opportunity,
+  reference?: Date,
+): NormalizedOpportunity {
   return {
     title: collapse(opportunity.title),
     type: opportunity.type,
@@ -145,7 +171,7 @@ export function normalizeOpportunity(opportunity: Opportunity): NormalizedOpport
     evidence: opportunity.evidence
       .map((item) => ({ field: item.field.trim(), text: collapse(item.text) }))
       .filter((item) => item.field && item.text),
-    eventDate: normalizeDate(opportunity.eventDate),
+    eventDate: normalizeDate(opportunity.eventDate, reference),
     monetization: normalizeStringList(opportunity.monetization),
     entryBarrier: opportunity.entryBarrier,
     competition: opportunity.competition,
