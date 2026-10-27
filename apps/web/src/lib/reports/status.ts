@@ -46,7 +46,7 @@ export function reportStatusMessage(input: {
   const counts = `${input.extractedCount} / ${input.sourceCount}`;
   switch (input.status) {
     case "completed":
-      return `成功分析 ${counts} 个来源。图表可视化即将上线。`;
+      return `成功分析 ${counts} 个来源。`;
     case "analyzing":
       return `成功提取 ${counts} 个来源，正在进行 AI 分析…`;
     case "extracting":

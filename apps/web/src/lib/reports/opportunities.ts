@@ -2,6 +2,7 @@ import {
   normalizedOpportunitySchema,
   OPPORTUNITY_TYPE_LABELS,
   type Level,
+  type OpportunityType,
 } from "@research/scrapegraph";
 
 import type { Json } from "@/lib/supabase/database.types";
@@ -29,7 +30,9 @@ export function levelLabel(level: Level): string {
 export type OpportunityRow = {
   id: string;
   title: string;
+  type: OpportunityType;
   typeLabel: string;
+  summary: string;
   eventDate: string | null;
   barrier: string;
   competition: string;
@@ -54,7 +57,9 @@ export function toOpportunityRows(
       {
         id: item.id,
         title: parsed.data.title,
+        type: parsed.data.type,
         typeLabel: OPPORTUNITY_TYPE_LABELS[parsed.data.type],
+        summary: parsed.data.summary,
         eventDate: parsed.data.eventDate,
         barrier: levelLabel(parsed.data.entryBarrier),
         competition: levelLabel(parsed.data.competition),

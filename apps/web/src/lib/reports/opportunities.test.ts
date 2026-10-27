@@ -50,7 +50,9 @@ describe("toOpportunityRows", () => {
       {
         id: "i1",
         title: "AI 漫画工具上线",
+        type: "new_tool",
         typeLabel: "新工具",
+        summary: expect.any(String),
         eventDate: "2026-03-05",
         barrier: "低",
         competition: "未知",
