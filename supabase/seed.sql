@@ -1,0 +1,6 @@
+-- Local development seed.
+--
+-- Profiles are created automatically by the on_auth_user_created trigger when
+-- a user signs up. Create test users through the app (or Supabase Studio) so
+-- that auth.users and public.profiles stay consistent. Do not insert profiles
+-- without a matching auth.users row: the foreign key will reject it.
