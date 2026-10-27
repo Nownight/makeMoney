@@ -137,6 +137,27 @@ export function recencyBonus(url: string, title: string): number {
   return bonus;
 }
 
+const LIST_URL = /\/(t|tag|tags|topic|topics|category|categories|list|lists|archive|archives)(\/|$)|financingbulletin|\/list[_-]|[?&]page=/i;
+const LIST_TITLE = /快报|快讯|汇总|合集|一览|列表|日报|周报|早报|晚报|融资动态|tag|archive/i;
+
+/** Aggregator/list pages mix unrelated topics; push them below article pages. */
+export function listPagePenalty(url: string, title: string): number {
+  let penalty = 0;
+  if (LIST_URL.test(new URL(url).pathname + new URL(url).search)) penalty -= 25;
+  if (LIST_TITLE.test(title)) penalty -= 15;
+  return penalty;
+}
+
+const SECOND_LEVEL = /^(com|net|org|gov|edu|co|ac)$/;
+
+/** Registrable-ish site key so m.example.com and news.example.com share a cap. */
+export function siteKey(domain: string): string {
+  const labels = domain.split(".");
+  if (labels.length <= 2) return domain;
+  const keep = SECOND_LEVEL.test(labels[labels.length - 2]) && labels[labels.length - 1].length === 2 ? 3 : 2;
+  return labels.slice(-keep).join(".");
+}
+
 export function toSnippet(content: string): string {
   const text = content
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
@@ -148,14 +169,11 @@ export function toSnippet(content: string): string {
 }
 
 /**
- * Turns raw search results into at most `limit` sources: drops invalid/junk
- * URLs and duplicates, keeps max 2 per domain, sorts by quality score.
+ * Ranks raw search results: drops invalid/junk URLs, blocked pages and
+ * duplicates, keeps max 2 per site, sorts by quality score. The tail beyond
+ * the source limit is used as backfill when an extraction fails.
  */
-export function filterSources(
-  results: readonly SearchResult[],
-  query: string,
-  limit: number,
-): FilteredSource[] {
+export function rankSources(results: readonly SearchResult[], query: string): FilteredSource[] {
   const seen = new Set<string>();
   const candidates: FilteredSource[] = [];
 
@@ -166,7 +184,8 @@ export function filterSources(
 
     const searchRank = index + 1;
     const title = result.title.trim();
-    const score = scoreSource(url, searchRank, query) + recencyBonus(url, title);
+    const score =
+      scoreSource(url, searchRank, query) + recencyBonus(url, title) + listPagePenalty(url, title);
     candidates.push({
       url,
       title: title || domainOf(url),
@@ -182,16 +201,21 @@ export function filterSources(
     (a, b) => b.qualityScore - a.qualityScore || a.searchRank - b.searchRank,
   );
 
-  const perDomain = new Map<string, number>();
-  const selected: FilteredSource[] = [];
+  const perSite = new Map<string, number>();
+  return candidates.filter((candidate) => {
+    const key = siteKey(candidate.domain);
+    const count = perSite.get(key) ?? 0;
+    if (count >= MAX_PER_DOMAIN) return false;
+    perSite.set(key, count + 1);
+    return true;
+  });
+}
 
-  for (const candidate of candidates) {
-    const count = perDomain.get(candidate.domain) ?? 0;
-    if (count >= MAX_PER_DOMAIN) continue;
-    perDomain.set(candidate.domain, count + 1);
-    selected.push(candidate);
-    if (selected.length >= limit) break;
-  }
-
-  return selected;
+/** The top `limit` of rankSources. */
+export function filterSources(
+  results: readonly SearchResult[],
+  query: string,
+  limit: number,
+): FilteredSource[] {
+  return rankSources(results, query).slice(0, Math.max(0, limit));
 }

@@ -11,9 +11,12 @@ export {
   domainOf,
   filterSources,
   isJunkUrl,
+  listPagePenalty,
   normalizeUrl,
+  rankSources,
   recencyBonus,
   scoreSource,
+  siteKey,
   toSnippet,
   type FilteredSource,
 } from "./filter";

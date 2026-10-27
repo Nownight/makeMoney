@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { filterSources, isJunkUrl, normalizeUrl, recencyBonus, scoreSource, toSnippet } from "./filter";
+import {
+  filterSources,
+  isJunkUrl,
+  listPagePenalty,
+  rankSources,
+  siteKey,
+  normalizeUrl, recencyBonus, scoreSource, toSnippet } from "./filter";
 import type { SearchResult } from "./schema";
 
 const result = (url: string, title = "T", content = "A normal product page body with enough descriptive text to pass."): SearchResult => ({ url, title, content });
@@ -148,5 +154,32 @@ describe("recency bias", () => {
     );
     expect(withDate.publishedAt).toBe("2026-05-01");
     expect(without.publishedAt).toBeNull();
+  });
+});
+
+describe("diversity and list pages", () => {
+  it("penalizes aggregator/list pages", () => {
+    expect(listPagePenalty("https://www.iyiou.com/financingbulletin", "融资快报")).toBe(-40);
+    expect(listPagePenalty("https://a.com/tag/ai", "AI")).toBe(-25);
+    expect(listPagePenalty("https://a.com/2026/09/cursor-raises", "Cursor raises")).toBe(0);
+  });
+
+  it("groups subdomains under one site key", () => {
+    expect(siteKey("m.iyiou.com")).toBe("iyiou.com");
+    expect(siteKey("news.sina.com.cn")).toBe("sina.com.cn");
+    expect(siteKey("a.com")).toBe("a.com");
+  });
+
+  it("caps 2 per site across subdomains and ranks list pages lower", () => {
+    const results = [
+      { url: "https://www.iyiou.com/financingbulletin", title: "融资快报", content: "x".repeat(300) },
+      { url: "https://a.iyiou.com/p/1", title: "AI 编程", content: "x".repeat(300) },
+      { url: "https://b.iyiou.com/p/2", title: "AI 编程 2", content: "x".repeat(300) },
+      { url: "https://c.com/p/3", title: "AI 编程 3", content: "x".repeat(300) },
+    ];
+    const ranked = rankSources(results, "AI编程工具");
+    expect(ranked.filter((s) => s.domain.endsWith("iyiou.com"))).toHaveLength(2);
+    expect(ranked.map((s) => s.url)).not.toContain("https://www.iyiou.com/financingbulletin");
+    expect(filterSources(results, "AI编程工具", 2)).toHaveLength(2);
   });
 });
