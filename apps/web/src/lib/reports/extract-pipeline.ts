@@ -1,7 +1,7 @@
 import {
-  extractProducts,
+  extractOpportunities,
   SCHEMA_VERSION,
-  type ExtractProductsResult,
+  type ExtractOpportunitiesResult,
   type ScrapeGraphClient,
 } from "@research/scrapegraph";
 
@@ -60,15 +60,15 @@ type SourceOutcome =
   | { status: "extracted"; items: CachedItem[]; cached: boolean }
   | { status: "partial" | "failed"; reason: string };
 
-export function toItems(result: ExtractProductsResult): SourceOutcome {
+export function toItems(result: ExtractOpportunitiesResult): SourceOutcome {
   if (result.status !== "extracted") return { status: result.status, reason: result.reason };
   return {
     status: "extracted",
     cached: false,
-    items: result.products.map((product) => ({
-      entity_name: product.name,
-      entity_type: "product",
-      normalized_data: product,
+    items: result.opportunities.map((opportunity) => ({
+      entity_name: opportunity.title,
+      entity_type: "opportunity",
+      normalized_data: opportunity,
       confidence: null,
     })),
   };
@@ -125,7 +125,7 @@ export async function runExtraction(
       const cached = await findCachedItems(admin, source.url);
       outcome = cached
         ? { status: "extracted", items: cached, cached: true }
-        : toItems(await extractProducts(client, source.url));
+        : toItems(await extractOpportunities(client, source.url));
     } catch (error) {
       outcome = { status: "failed", reason: error instanceof Error ? error.message : String(error) };
     }

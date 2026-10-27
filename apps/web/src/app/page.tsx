@@ -18,68 +18,62 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const EXAMPLES = [
-  "AI 编程工具",
-  "AI 视频生成工具",
-  "CRM 软件",
-  "新能源汽车品牌",
-  "AI 客服 SaaS",
-];
+const EXAMPLES = ["AI 漫画", "宠物用品", "跨境电商", "短剧出海"];
 
 const FEATURES = [
   {
     icon: Globe,
-    title: "多源真实检索",
+    title: "多角度实时检索",
     description:
-      "先搜索网页，再读取内容，而不是让模型凭记忆作答。优先官网、产品页与权威媒体。",
+      "自动把领域拆成新产品、融资、需求、变现、政策等多个检索角度，优先最新的新闻与发布。",
   },
   {
     icon: Layers,
-    title: "固定 Schema 提取",
+    title: "结构化机会信号",
     description:
-      "把混乱的网页统一成结构化数据：价格、套餐、功能、目标用户与证据原文。",
+      "把网页统一成机会信号：类型、时间、热度信号、变现方式、进入门槛与证据原文。",
   },
   {
     icon: ChartNoAxesCombined,
-    title: "自动选择可视化",
+    title: "AI 机会评估",
     description:
-      "系统根据数据类型决定表格、柱状图或折线图，不生成无意义的图表。",
+      "按时效性、证据强度、可行性给机会打分，并说明为什么是现在、适合谁、如何起步。",
   },
   {
     icon: ShieldCheck,
     title: "来源可追溯",
     description:
-      "关键数据保留来源链接、抓取时间与置信度，方便核对，而不是只给结论。",
+      "每个机会都引用支撑它的来源，过时的信息会被标注，方便核对而不是只给结论。",
   },
 ];
 
 const STEPS = [
   {
     step: "01",
-    title: "输入研究主题",
-    description: "用一句自然语言描述你想比较的产品、公司或市场。",
+    title: "输入你关心的领域",
+    description: "例如 AI 漫画、宠物用品、跨境电商，越具体越好。",
   },
   {
     step: "02",
     title: "搜索与筛选来源",
-    description: "发现相关网页，过滤重复、低质量与无关页面，只保留可信来源。",
+    description: "围绕多个角度检索最新内容，过滤重复、百科类与被拦截的页面。",
   },
   {
     step: "03",
-    title: "提取并标准化数据",
-    description: "按统一结构读取每个页面，校验价格、日期与缺失字段。",
+    title: "提取机会信号",
+    description: "按统一结构读取每个页面，标准化日期，保留证据原文。",
   },
   {
     step: "04",
-    title: "分析与生成报告",
-    description: "归纳差异、生成排名和图表，并导出 CSV、Excel 或 PDF。",
+    title: "评估并给出契机",
+    description: "汇总最值得关注的契机、趋势与风险，每条都可追溯来源。",
   },
 ];
 
 const PREVIEW_ROWS = [
-  { name: "Cursor", price: "$20", free: "有", focus: "专业开发者" },
-  { name: "Copilot", price: "$10", free: "有", focus: "团队协作" },
-  { name: "Windsurf", price: "$15", free: "有", focus: "快速上手" },
+  { name: "AI 条漫代制作", price: "新需求", free: "低", focus: "中小漫画工作室" },
+  { name: "漫画出海本地化", price: "新渠道", free: "中", focus: "翻译 / 运营团队" },
+  { name: "AI 漫剧短视频", price: "资本动向", free: "中", focus: "内容创作者" },
 ];
 
 function SearchBox({ id }: { id: string }) {
@@ -93,7 +87,7 @@ function SearchBox({ id }: { id: string }) {
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
         <label htmlFor={id} className="sr-only">
-          研究主题
+          你关心的领域
         </label>
         <input
           id={id}
@@ -103,7 +97,7 @@ function SearchBox({ id }: { id: string }) {
           minLength={2}
           maxLength={120}
           autoComplete="off"
-          placeholder="例如：AI 编程工具"
+          placeholder="输入你关心的领域，例如：AI 漫画"
           className="h-12 w-full rounded-xl border border-border bg-background pr-4 pl-11 text-base shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
         />
       </div>
@@ -112,7 +106,7 @@ function SearchBox({ id }: { id: string }) {
         size="lg"
         className="h-12 shrink-0 rounded-xl px-6 text-sm"
       >
-        开始研究
+        发现契机
         <ArrowRight />
       </Button>
     </form>
@@ -133,17 +127,17 @@ export default function HomePage() {
               className="mb-6 h-auto gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-xs backdrop-blur"
             >
               <Sparkles className="size-3 text-chart-1" />
-              AI 竞品研究 · 自动生成可视化报告
+              AI 机会发现 · 有证据、有来源
             </Badge>
 
             <h1 className="text-balance mx-auto max-w-3xl text-4xl leading-[1.12] font-semibold tracking-tight sm:text-6xl">
-              搜一个主题，
+              输入一个领域，
               <br className="hidden sm:block" />
-              AI 自动研究整个互联网
+              发现当下的契机
             </h1>
 
             <p className="text-balance mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              自动搜索多个可信来源、提取关键数据、比较分析，并生成可直接下载的可视化报告。
+              自动检索最新的发布、融资、需求与政策动态，提炼出有证据、可追溯来源的机会清单。
             </p>
 
             <div className="mt-9">
@@ -170,11 +164,11 @@ export default function HomePage() {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-chart-2" />
-                结构化对比数据
+                每个机会附证据
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-chart-2" />
-                免费查看报告摘要
+                时效性优先
               </span>
             </div>
           </div>
@@ -187,10 +181,10 @@ export default function HomePage() {
                 Features
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                不是聊天，是一份研究报告
+                不是灵感清单，是有证据的契机
               </h2>
               <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-                从发现来源到导出文件，每一步都留下可核查的数据与引用。
+                从检索到评估，每个机会都留下可核查的信号与引用。
               </p>
             </div>
 
@@ -222,10 +216,10 @@ export default function HomePage() {
                   Example report
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                  看到数据，而不只是结论
+                  看到证据，而不只是结论
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-                  摘要、对比表、关键发现、图表与来源，组成一份可以直接用于决策的报告。
+                  摘要、契机卡片、趋势与来源，组成一份可以直接用于决策的报告。
                 </p>
               </div>
               <Badge variant="secondary" className="w-fit">
@@ -239,7 +233,7 @@ export default function HomePage() {
                 <span className="size-2.5 rounded-full bg-border" />
                 <span className="size-2.5 rounded-full bg-border" />
                 <span className="mx-auto rounded-md bg-background px-3 py-1 text-[10px] text-muted-foreground ring-1 ring-border">
-                  yantu.app/report/demo
+                  qiji.app/report/demo
                 </span>
               </div>
 
@@ -253,15 +247,15 @@ export default function HomePage() {
                       </Badge>
                       <span>10 个来源</span>
                       <span>·</span>
-                      <span>24 个数据点</span>
+                      <span>12 条机会信号</span>
                       <span>·</span>
                       <span>更新于今天</span>
                     </div>
                     <h3 className="text-xl font-semibold tracking-tight">
-                      AI 编程工具竞品研究
+                      AI 漫画领域契机
                     </h3>
                     <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      主流 AI 编程助手在定价、免费额度与目标用户上的差异。专业开发者更关注上下文能力与编辑器集成，团队采购则更看重统一计费与权限管理。
+                      AI 生成工具降低了条漫制作成本，平台对 AI 内容的政策逐步明确，出海与短视频化带来新的分发渠道。
                     </p>
                   </div>
 
@@ -269,10 +263,10 @@ export default function HomePage() {
                     <table className="w-full text-left text-xs">
                       <thead className="bg-muted/60 text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 font-medium">产品</th>
-                          <th className="px-3 py-2 font-medium">月费</th>
-                          <th className="px-3 py-2 font-medium">免费版</th>
-                          <th className="px-3 py-2 font-medium">定位</th>
+                          <th className="px-3 py-2 font-medium">契机</th>
+                          <th className="px-3 py-2 font-medium">类型</th>
+                          <th className="px-3 py-2 font-medium">门槛</th>
+                          <th className="px-3 py-2 font-medium">适合</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -292,26 +286,26 @@ export default function HomePage() {
 
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <FileSpreadsheet className="size-3.5" />
-                    可导出 CSV / XLSX / PDF，并保留每行来源链接
+                    每个契机都保留支撑来源链接
                   </div>
                 </div>
 
                 <div className="space-y-6 border-t bg-muted/30 p-6 sm:p-8 lg:border-t-0 lg:border-l">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">月费对比</h4>
-                      <span className="text-[10px] text-muted-foreground">USD / 月</span>
+                      <h4 className="text-sm font-medium">时效性评分</h4>
+                      <span className="text-[10px] text-muted-foreground">AI 分析 · 1–5</span>
                     </div>
                     <div className="space-y-3">
                       {[
-                        { name: "Cursor", price: 20, width: "100%" },
-                        { name: "Windsurf", price: 15, width: "75%" },
-                        { name: "Copilot", price: 10, width: "50%" },
+                        { name: "AI 条漫代制作", price: 5, width: "100%" },
+                        { name: "AI 漫剧短视频", price: 4, width: "80%" },
+                        { name: "漫画出海本地化", price: 3, width: "60%" },
                       ].map((item) => (
                         <div key={item.name} className="space-y-1.5">
                           <div className="flex items-center justify-between text-[11px]">
                             <span>{item.name}</span>
-                            <span className="font-medium">${item.price}</span>
+                            <span className="font-medium">{item.price}</span>
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-background">
                             <div
@@ -332,21 +326,21 @@ export default function HomePage() {
                     <ul className="space-y-2 text-[12px] leading-relaxed">
                       <li className="flex gap-2">
                         <span className="mt-1.5 size-1 shrink-0 rounded-full bg-chart-1" />
-                        个人版价格集中在 $10–$20 / 月，免费额度是主要获客手段。
+                        多家平台近期上线 AI 漫画创作工具，制作成本显著下降。
                       </li>
                       <li className="flex gap-2">
                         <span className="mt-1.5 size-1 shrink-0 rounded-full bg-chart-2" />
-                        企业版普遍不公开单价，转向按席位或用量报价。
+                        条漫与漫剧短视频成为新的分发与变现形式。
                       </li>
                       <li className="flex gap-2">
                         <span className="mt-1.5 size-1 shrink-0 rounded-full bg-chart-3" />
-                        定价差异之外，模型选择与上下文长度是第二竞争维度。
+                        平台对 AI 生成内容的标注规则是主要合规风险。
                       </li>
                     </ul>
                   </div>
 
                   <p className="text-[10px] leading-relaxed text-muted-foreground">
-                    正式报告中，每个关键数据点都会附来源链接与抓取时间。
+                    正式报告中，每个契机都会附支撑来源，并标注过时信息。
                   </p>
                 </div>
               </div>
@@ -361,7 +355,7 @@ export default function HomePage() {
                 How it works
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                四步，从主题到报告
+                四步，从领域到契机
               </h2>
             </div>
 
@@ -394,7 +388,7 @@ export default function HomePage() {
               />
               <div className="relative max-w-2xl">
                 <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-                  准备好研究你的下一个市场了吗？
+                  准备好发现你的下一个契机了吗？
                 </h2>
                 <p className="mt-4 text-sm leading-relaxed text-background/70 sm:text-base">
                   免费账号可查看报告摘要与部分数据。需要完整数据和文件时，再按报告解锁。

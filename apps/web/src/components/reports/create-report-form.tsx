@@ -30,10 +30,10 @@ export function CreateReportForm({
         <Input
           name="query"
           defaultValue={defaultQuery}
-          placeholder="输入研究主题，例如：主流 AI 笔记工具对比"
+          placeholder="输入你关心的领域，例如：AI 漫画、宠物用品"
           maxLength={200}
           required
-          aria-label="研究主题"
+          aria-label="输入你关心的领域"
           aria-invalid={Boolean(state.fieldErrors?.query)}
           className="h-10 flex-1"
         />
@@ -51,7 +51,7 @@ export function CreateReportForm({
         </select>
         <SubmitButton className="h-10" pendingLabel="创建中…">
           <Search />
-          开始研究
+          发现契机
         </SubmitButton>
       </div>
       <FieldError messages={state.fieldErrors?.query} />

@@ -12,7 +12,7 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
     <Link
       href="/"
-      aria-label="研图 AI 首页"
+      aria-label="契机 AI 首页"
       className={cn(
         "inline-flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
         className,
@@ -23,7 +23,7 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
       </span>
       {showWordmark ? (
         <span className="text-[15px] font-semibold tracking-tight">
-          研图 <span className="font-normal text-muted-foreground">AI</span>
+          契机 <span className="font-normal text-muted-foreground">AI</span>
         </span>
       ) : null}
     </Link>

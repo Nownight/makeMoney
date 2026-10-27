@@ -8,7 +8,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "注册",
-  description: "创建研图 AI 账号，开始生成可下载的可视化研究报告。",
+  description: "创建契机 AI 账号，开始发现你关心领域的最新机会。",
 };
 
 export default async function SignUpPage() {
@@ -21,7 +21,7 @@ export default async function SignUpPage() {
   return (
     <AuthCard
       title="创建账号"
-      description="免费开始，输入一个主题即可体验自动研究流程。"
+      description="免费开始，输入你关心的领域，即可体验契机发现流程。"
       footer={
         <>
           已经有账号？

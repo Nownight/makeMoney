@@ -8,10 +8,10 @@ export const FREE_PLAN_SOURCE_LIMIT: ReportSourceLimit = 5;
 
 export const createReportSchema = z.object({
   query: z
-    .string("请输入研究主题")
+    .string("请输入你关心的领域")
     .trim()
-    .min(1, "请输入研究主题")
-    .max(200, "研究主题最多 200 个字符"),
+    .min(1, "请输入你关心的领域")
+    .max(200, "领域最多 200 个字符"),
   sourceLimit: z
     .union([z.literal(5), z.literal(10), z.literal(20)], "来源数量只能是 5、10 或 20")
     .default(5),

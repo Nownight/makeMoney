@@ -12,6 +12,7 @@ export {
   filterSources,
   isJunkUrl,
   normalizeUrl,
+  recencyBonus,
   scoreSource,
   toSnippet,
   type FilteredSource,
@@ -24,27 +25,32 @@ export {
   type SearchResponse,
   type SearchResult,
 } from "./schema";
-export { extractProducts, type ExtractProductsResult } from "./extract-products";
+export { extractOpportunities, type ExtractOpportunitiesResult } from "./extract-opportunities";
 export {
-  cheapestPrice,
   normalizeBillingPeriod,
   normalizeCurrency,
-  normalizeExtractedData,
-  normalizedProductSchema,
+  normalizeDate,
+  normalizedOpportunitySchema,
+  normalizeOpportunity,
   normalizePrice,
   normalizeStringList,
+  type NormalizedOpportunity,
   type NormalizedPrice,
-  type NormalizedProduct,
   type PricePeriod,
 } from "./normalize";
 export {
   EXTRACTION_JSON_SCHEMA,
   EXTRACTION_PROMPT,
   extractionResultSchema,
-  productSchema,
+  levelSchema,
+  OPPORTUNITY_TYPE_LABELS,
+  OPPORTUNITY_TYPES,
+  opportunitySchema,
   SCHEMA_VERSION,
   STRICT_EXTRACTION_PROMPT,
   type ExtractionResult,
-  type Product,
-} from "./product";
+  type Level,
+  type Opportunity,
+  type OpportunityType,
+} from "./opportunity";
 export { hasBlockedMarkers, looksBlocked, MIN_CONTENT_LENGTH } from "./blocked";

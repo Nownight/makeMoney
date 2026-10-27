@@ -6,15 +6,18 @@ import {
 
 import { runAnalysis } from "@/lib/reports/analyze-pipeline";
 import { runExtraction } from "@/lib/reports/extract-pipeline";
+import {
+  planQueries,
+  providerFromEnv,
+  searchQueries,
+  searchResultCount,
+} from "@/lib/reports/queries";
 import { logError, logEvent } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const MIN_USABLE_SOURCES = 2;
 
-/** Ask for 2x the sources we keep so filtering still leaves enough, max 20. */
-export function searchResultCount(sourceLimit: number): number {
-  return Math.min(sourceLimit * 2, 20);
-}
+export { searchResultCount };
 
 type ReportForSearch = {
   id: string;
@@ -24,6 +27,9 @@ type ReportForSearch = {
 
 /**
  * Temporary synchronous pipeline until the Phase 7 worker exists.
+ *
+ * The domain is expanded into 4-6 queries (LLM, or templates on failure);
+ * each is searched with a small numResults, results are merged and filtered.
  *
  * queued -> searching (10) -> extracting (20..65) -> normalizing (70) ->
  * analyzing (80) -> completed (100).
@@ -70,18 +76,28 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
     .update({ status: "searching", progress: 10, error_message: null })
     .eq("id", report.id);
 
+  const plan = await planQueries(report.query, null, providerFromEnv(process.env));
+  logEvent(plan.source === "llm" ? "info" : "warn", "report.search.queries", {
+    reportId: report.id,
+    stage: "searching",
+    source: plan.source,
+    queries: plan.queries.join(" | "),
+    ...(plan.error ? { reason: plan.error.slice(0, 200) } : {}),
+  });
+  await admin.from("reports").update({ search_queries: plan.queries }).eq("id", report.id);
+
   const client = createScrapeGraphClient({ apiKey });
   let sources: FilteredSource[];
   try {
-    const response = await client.search({
-      query: report.query,
-      numResults: searchResultCount(report.sourceLimit),
-    });
-    sources = filterSources(response.results, report.query, report.sourceLimit);
+    const search = await searchQueries(client, plan.queries, searchResultCount(report.sourceLimit));
+    sources = filterSources(search.results, report.query, report.sourceLimit);
     logEvent("info", "report.search.results", {
       reportId: report.id,
       stage: "searching",
-      rawCount: response.results.length,
+      queryCount: plan.queries.length,
+      numResultsPerQuery: search.numResultsPerQuery,
+      failedQueries: search.failedQueries,
+      rawCount: search.results.length,
       keptCount: sources.length,
       durationMs: Date.now() - startedAt,
     });
@@ -91,7 +107,7 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
   }
 
   if (sources.length < MIN_USABLE_SOURCES) {
-    await fail(`可用来源不足（仅找到 ${sources.length} 个），请换个更具体的主题`);
+    await fail(`可用来源不足（仅找到 ${sources.length} 个），请换个更具体的领域`);
     return;
   }
 
@@ -105,6 +121,7 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
       snippet: source.snippet,
       search_rank: source.searchRank,
       quality_score: source.qualityScore,
+      published_at: source.publishedAt,
       fetched_at: fetchedAt,
       raw_metadata: { provider: "scrapegraphai" },
     })),

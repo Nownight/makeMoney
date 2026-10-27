@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Product } from "./product";
+import { OPPORTUNITY_TYPES, levelSchema, type Opportunity } from "./opportunity";
 
 export const pricePeriodSchema = z.enum(["month", "year", "once"]).nullable();
 
@@ -12,22 +12,8 @@ export const normalizedPriceSchema = z.object({
 });
 
 /** Shape stored in extracted_items.normalized_data. */
-export const normalizedProductSchema = z.object({
-  name: z.string(),
-  company: z.string().nullable(),
-  category: z.string().nullable(),
-  pricing: z.array(normalizedPriceSchema),
-  freePlan: z.boolean().nullable(),
-  features: z.array(z.string()),
-  targetUsers: z.array(z.string()),
-  advantages: z.array(z.string()),
-  limitations: z.array(z.string()),
-  sourceEvidence: z.array(z.object({ field: z.string(), text: z.string() })),
-});
-
 export type PricePeriod = z.infer<typeof pricePeriodSchema>;
 export type NormalizedPrice = z.infer<typeof normalizedPriceSchema>;
-export type NormalizedProduct = z.infer<typeof normalizedProductSchema>;
 
 const CURRENCY_CODES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "INR"] as const;
 
@@ -116,31 +102,53 @@ function cleanNullable(value: string | null): string | null {
   return clean ? clean : null;
 }
 
-export function normalizeExtractedData(product: Product): NormalizedProduct {
-  return {
-    name: product.name.trim().replace(/\s+/g, " "),
-    company: cleanNullable(product.company),
-    category: cleanNullable(product.category),
-    pricing: product.pricing
-      .map(normalizePrice)
-      .filter((price) => price.plan || price.amount !== null),
-    freePlan: typeof product.freePlan === "boolean" ? product.freePlan : null,
-    features: normalizeStringList(product.features),
-    targetUsers: normalizeStringList(product.targetUsers),
-    advantages: normalizeStringList(product.advantages),
-    limitations: normalizeStringList(product.limitations),
-    sourceEvidence: product.sourceEvidence
-      .map((item) => ({ field: item.field.trim(), text: item.text.trim().replace(/\s+/g, " ") }))
-      .filter((item) => item.field && item.text),
-  };
+const pad = (value: number) => String(value).padStart(2, "0");
+
+/**
+ * Normalizes a date to YYYY-MM-DD, or null when unknown, partial (no day)
+ * or invalid. Accepts ISO dates/datetimes, 2026/3/5, 2026.3.5, 2026年3月5日.
+ */
+export function normalizeDate(text: string | null | undefined): string | null {
+  const match = text?.trim().match(/^(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?/);
+  if (!match) return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return null;
+  }
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-/** Lowest known price (free counts as 0), or null if no plan has an amount. */
-export function cheapestPrice(pricing: readonly NormalizedPrice[]): NormalizedPrice | null {
-  let best: NormalizedPrice | null = null;
-  for (const price of pricing) {
-    if (price.amount === null) continue;
-    if (!best || (best.amount !== null && price.amount < best.amount)) best = price;
-  }
-  return best;
+export const normalizedOpportunitySchema = z.object({
+  title: z.string(),
+  type: z.enum(OPPORTUNITY_TYPES),
+  summary: z.string(),
+  signals: z.array(z.string()),
+  evidence: z.array(z.object({ field: z.string(), text: z.string() })),
+  eventDate: z.string().nullable(),
+  monetization: z.array(z.string()),
+  entryBarrier: levelSchema,
+  competition: levelSchema,
+  targetAudience: z.array(z.string()),
+});
+
+export type NormalizedOpportunity = z.infer<typeof normalizedOpportunitySchema>;
+
+const collapse = (value: string) => value.trim().replace(/\s+/g, " ");
+
+export function normalizeOpportunity(opportunity: Opportunity): NormalizedOpportunity {
+  return {
+    title: collapse(opportunity.title),
+    type: opportunity.type,
+    summary: collapse(opportunity.summary),
+    signals: normalizeStringList(opportunity.signals),
+    evidence: opportunity.evidence
+      .map((item) => ({ field: item.field.trim(), text: collapse(item.text) }))
+      .filter((item) => item.field && item.text),
+    eventDate: normalizeDate(opportunity.eventDate),
+    monetization: normalizeStringList(opportunity.monetization),
+    entryBarrier: opportunity.entryBarrier,
+    competition: opportunity.competition,
+    targetAudience: normalizeStringList(opportunity.targetAudience),
+  };
 }

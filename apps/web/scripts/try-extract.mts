@@ -1,12 +1,12 @@
 /**
- * Live check of the ScrapeGraphAI extract adapter + normalization (no database).
+ * Live check of the ScrapeGraphAI extract adapter + opportunity normalization (no database).
  *
- *   pnpm try-extract https://cursor.com/pricing
+ *   pnpm try-extract https://36kr.com/p/<id>
  *
  * Reads SGAI_API_KEY from apps/web/.env.local. Costs 5 credits per attempt
  * (up to 3 attempts when the output fails schema validation).
  */
-import { createScrapeGraphClient, extractProducts, normalizeUrl } from "@research/scrapegraph";
+import { createScrapeGraphClient, extractOpportunities, normalizeUrl } from "@research/scrapegraph";
 
 try {
   process.loadEnvFile(new URL("../.env.local", import.meta.url));
@@ -27,8 +27,8 @@ if (!apiKey) {
 }
 
 const startedAt = Date.now();
-const result = await extractProducts(createScrapeGraphClient({ apiKey }), url);
+const result = await extractOpportunities(createScrapeGraphClient({ apiKey }), url);
 
 console.log(`URL: ${url}`);
 console.log(`Status: ${result.status}, attempts: ${result.attempts}, ${Date.now() - startedAt}ms\n`);
-console.log(JSON.stringify(result.status === "extracted" ? result.products : result.reason, null, 2));
+console.log(JSON.stringify(result.status === "extracted" ? result.opportunities : result.reason, null, 2));

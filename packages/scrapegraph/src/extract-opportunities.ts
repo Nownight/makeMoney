@@ -1,15 +1,15 @@
 import { hasBlockedMarkers } from "./blocked";
 import { ScrapeGraphError, type ScrapeGraphClient } from "./client";
-import { normalizeExtractedData, type NormalizedProduct } from "./normalize";
+import { normalizeOpportunity, type NormalizedOpportunity } from "./normalize";
 import {
   EXTRACTION_JSON_SCHEMA,
   EXTRACTION_PROMPT,
   STRICT_EXTRACTION_PROMPT,
   extractionResultSchema,
-} from "./product";
+} from "./opportunity";
 
-export type ExtractProductsResult =
-  | { status: "extracted"; products: NormalizedProduct[]; attempts: number }
+export type ExtractOpportunitiesResult =
+  | { status: "extracted"; opportunities: NormalizedOpportunity[]; attempts: number }
   | { status: "partial"; attempts: number; reason: string }
   | { status: "failed"; attempts: number; reason: string };
 
@@ -17,13 +17,13 @@ export type ExtractProductsResult =
 const ATTEMPT_PROMPTS = [EXTRACTION_PROMPT, EXTRACTION_PROMPT, STRICT_EXTRACTION_PROMPT];
 
 /**
- * Extracts products from one URL. API/network failures (after the client's
+ * Extracts opportunity signals from one URL. API/network failures (after the client's
  * own retries) -> failed. Output that never passes Zod -> partial.
  */
-export async function extractProducts(
+export async function extractOpportunities(
   client: ScrapeGraphClient,
   url: string,
-): Promise<ExtractProductsResult> {
+): Promise<ExtractOpportunitiesResult> {
   let attempts = 0;
 
   for (const prompt of ATTEMPT_PROMPTS) {
@@ -42,7 +42,7 @@ export async function extractProducts(
     }
 
     const parsed = extractionResultSchema.safeParse(json);
-    const empty = !parsed.success || parsed.data.products.length === 0;
+    const empty = !parsed.success || parsed.data.opportunities.length === 0;
     // Blocked/error pages: no point retrying, and never count as extracted.
     if (empty && (hasBlockedMarkers(raw) || (!parsed.success && hasBlockedMarkers(JSON.stringify(json ?? ""))))) {
       return { status: "failed", attempts, reason: "page looks blocked (anti-bot or error page)" };
@@ -50,7 +50,7 @@ export async function extractProducts(
     if (parsed.success) {
       return {
         status: "extracted",
-        products: parsed.data.products.map(normalizeExtractedData),
+        opportunities: parsed.data.opportunities.map(normalizeOpportunity),
         attempts,
       };
     }

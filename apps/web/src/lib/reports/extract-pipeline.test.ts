@@ -37,23 +37,25 @@ describe("extractionProgress", () => {
 });
 
 describe("toItems", () => {
-  it("maps products to rows and passes through failures", () => {
-    const product = {
-      name: "Cursor",
-      company: null,
-      category: null,
-      pricing: [],
-      freePlan: null,
-      features: [],
-      targetUsers: [],
-      advantages: [],
-      limitations: [],
-      sourceEvidence: [],
+  it("maps opportunities to rows and passes through failures", () => {
+    const opportunity = {
+      title: "AI 漫画工具上线",
+      type: "new_tool" as const,
+      summary: "",
+      signals: [],
+      evidence: [],
+      eventDate: "2026-03-05",
+      monetization: [],
+      entryBarrier: null,
+      competition: null,
+      targetAudience: [],
     };
-    expect(toItems({ status: "extracted", attempts: 1, products: [product] })).toEqual({
+    expect(toItems({ status: "extracted", attempts: 1, opportunities: [opportunity] })).toEqual({
       status: "extracted",
       cached: false,
-      items: [{ entity_name: "Cursor", entity_type: "product", normalized_data: product, confidence: null }],
+      items: [
+        { entity_name: "AI 漫画工具上线", entity_type: "opportunity", normalized_data: opportunity, confidence: null },
+      ],
     });
     expect(toItems({ status: "partial", attempts: 3, reason: "x" })).toEqual({ status: "partial", reason: "x" });
   });

@@ -8,7 +8,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "邮箱登录链接",
-  description: "使用一次性邮箱链接登录研图 AI，无需密码。",
+  description: "使用一次性邮箱链接登录契机 AI，无需密码。",
 };
 
 export default async function MagicLinkPage() {

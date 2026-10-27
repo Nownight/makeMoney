@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterSources, isJunkUrl, normalizeUrl, scoreSource, toSnippet } from "./filter";
+import { filterSources, isJunkUrl, normalizeUrl, recencyBonus, scoreSource, toSnippet } from "./filter";
 import type { SearchResult } from "./schema";
 
 const result = (url: string, title = "T", content = "A normal product page body with enough descriptive text to pass."): SearchResult => ({ url, title, content });
@@ -115,5 +115,38 @@ describe("filterSources blocked content", () => {
       5,
     );
     expect(kept.map((s) => s.url)).toEqual(["https://a.com/x"]);
+  });
+});
+
+describe("recency bias", () => {
+  it("boosts news/launch/funding pages and penalizes encyclopedia/how-to", () => {
+    expect(recencyBonus("https://36kr.com/p/1", "某公司完成 A 轮融资")).toBe(20);
+    expect(recencyBonus("https://news.example.com/a", "T")).toBe(10);
+    expect(recencyBonus("https://www.producthunt.com/posts/x", "T")).toBe(10);
+    expect(recencyBonus("https://baike.baidu.com/item/x", "什么是 AI 漫画")).toBe(-30);
+    expect(recencyBonus("https://example.com/a", "如何开网店")).toBe(-10);
+    expect(recencyBonus("https://example.com/a", "T")).toBe(0);
+  });
+
+  it("ranks fresh pages above encyclopedia pages", () => {
+    const sources = filterSources(
+      [result("https://baike.baidu.com/item/x", "什么是 X"), result("https://c.com/news/1", "X 最新发布")],
+      "X",
+      5,
+    );
+    expect(sources.map((s) => s.domain)).toEqual(["c.com", "baike.baidu.com"]);
+  });
+
+  it("parses publishedAt when the search result has a date", () => {
+    const [withDate, without] = filterSources(
+      [
+        { ...result("https://a.com/1"), publishedAt: "2026-05-01T08:00:00Z" },
+        result("https://b.com/1"),
+      ],
+      "q",
+      5,
+    );
+    expect(withDate.publishedAt).toBe("2026-05-01");
+    expect(without.publishedAt).toBeNull();
   });
 });

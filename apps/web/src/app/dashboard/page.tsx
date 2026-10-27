@@ -23,7 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "控制台",
-  description: "管理你的研究报告、来源额度与账号信息。",
+  description: "管理你的契机报告、来源额度与账号信息。",
 };
 
 type DashboardPageProps = {
@@ -92,7 +92,7 @@ export default async function DashboardPage({
   const credits = profile?.credits ?? 0;
   const sourceLimit = plan === "pro" ? 20 : 5;
   const displayName =
-    profile?.display_name ?? user.displayName ?? user.email?.split("@")[0] ?? "研究者";
+    profile?.display_name ?? user.displayName ?? user.email?.split("@")[0] ?? "探索者";
   const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
@@ -106,7 +106,7 @@ export default async function DashboardPage({
             你好，{displayName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            这里将汇总你的研究报告、数据来源和下载文件。
+            这里将汇总你的契机报告、数据来源和下载文件。
           </p>
         </div>
         <Badge variant="outline" className="w-fit px-2.5 py-1">
@@ -117,9 +117,9 @@ export default async function DashboardPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>发起新研究</CardTitle>
+          <CardTitle>发现新契机</CardTitle>
           <CardDescription>
-            输入产品、公司、工具或服务主题，创建一份研究报告。
+            输入你关心的领域，系统会检索最新动态并整理出当下的契机。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -131,7 +131,7 @@ export default async function DashboardPage({
         <StatCard
           label="可用额度"
           value={String(credits)}
-          hint={plan === "pro" ? "每月自动重置" : "免费额度，用于发起研究"}
+          hint={plan === "pro" ? "每月自动重置" : "免费额度，用于发现契机"}
           icon={Wallet}
         />
         <StatCard
@@ -159,7 +159,7 @@ export default async function DashboardPage({
           <CardHeader>
             <CardTitle>最近报告</CardTitle>
             <CardDescription>
-              研究完成后，可在这里查看摘要、图表与可下载文件。
+              分析完成后，可在这里查看摘要、图表与可下载文件。
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -191,9 +191,9 @@ export default async function DashboardPage({
                 <span className="mb-4 grid size-11 place-items-center rounded-full bg-background ring-1 ring-border">
                   <FileText className="size-5 text-muted-foreground" />
                 </span>
-                <p className="text-sm font-medium">还没有研究报告</p>
+                <p className="text-sm font-medium">还没有契机报告</p>
                 <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                  在上方输入一个主题，即可创建你的第一份研究报告。
+                  在上方输入你关心的领域，即可创建你的第一份契机报告。
                 </p>
               </div>
             )}

@@ -1,6 +1,6 @@
-# 研图 AI（Research SaaS）
+# 契机 AI（Opportunity Discovery SaaS）
 
-输入一个研究主题，自动搜索多个可信网页、提取结构化数据、对比分析，并生成带来源引用的可视化研究报告。
+输入你关心的领域，自动扩展检索词、搜索近期公开信号、提取机会并生成带来源引用、可执行的契机报告。
 
 当前仓库已完成 **Phase 3（ScrapeGraphAI 来源搜索）**。后续阶段严格按 PRD 顺序推进，不一次性铺开全部功能。
 
@@ -286,6 +286,20 @@ research-saas/
 - 同步流程：`… → normalizing(70%) → analyzing(80%) → completed(100%)`，写入 `title`（为空时）、`executive_summary`、`analysis_json`、`completed_at`。未配置或失败则 `failed`，已提取的数据保留。图表规格已保存，渲染在 Phase 6。
 - 环境变量：`LLM_BASE_URL`（默认 `https://api.openai.com/v1`）、`OPENAI_API_KEY`、`ANALYSIS_MODEL`（必填）。
 - 本地验证中转：`pnpm try-analyze`（使用示例数据，不写数据库）。
+
+## 方向调整：契机 AI（pivot-opportunity）
+
+产品从“产品对比研究”转为**机会发现**：输入你关心的领域（如 AI 漫画、宠物用品、跨境电商、短剧出海），自动扩展检索词、搜索近期信号、提取机会并由 AI 给出可执行的契机卡片。
+
+- **查询扩展**：`LLMProvider.expandQueries()` 把领域扩展为 3–6 个检索词（含当前年份，偏向新闻 / 政策 / 融资 / 平台规则 / 需求信号）；LLM 未配置或失败时使用模板 `fallbackQueries(domain, year)`（5 个后缀）。检索词写入 `reports.search_queries`（jsonb 数组，迁移 `20261027040000_add_report_search_queries.sql`），并在报告页展示。
+- **多查询搜索**：总结果数仍为 `min(source_limit*2, 20)`，按查询均分（每条至少 1），并发执行、交错合并；仅当全部查询失败时报错。
+- **时效偏好**：`filterSources()` 对 URL / 标题中的近期日期与新闻路径加分，对百科 / 问答 / “什么是 / 如何”类页面减分；解析 `publishedAt` 写入 `sources.published_at`。
+- **提取**：`OpportunitySchema`（`packages/scrapegraph/src/opportunity.ts`，`SCHEMA_VERSION = "opportunity-v1"`，`entity_type = "opportunity"`）：标题、类型（政策 / 融资 / 新品 / 平台规则 / 需求 / 趋势…）、事件日期、门槛、竞争、证据摘要等；日期归一化为 `YYYY-MM-DD` 或 null。
+- **分析**：`ReportAnalysis = { title, executiveSummary, topOpportunities, trends, warnings, charts }`。每个机会包含时效 / 证据 / 可行性评分（1–5，AI 主观判断，页面标注“AI 分析”）、whyNow、whoFits、howToStart、risks 与引用的 itemIds；未知 itemId 会被移除，无引用的机会被丢弃。超过 12 个月的证据会被提示。
+- **报告页**：契机卡片 + 趋势 + 注意事项 + 机会信号表（标题、类型、日期、门槛、竞争、来源）+ 检索关键词。
+- **积分估算（source_limit = 5）**：搜索约 10 条 × 2 = 20 credits，提取 5 × 5 = 25 credits，合计约 **45 credits / 报告**，外加 2 次 LLM 调用（扩展 + 分析）。
+- **数据源限制**：小红书、抖音、微信公众号等平台需要登录 / 反爬，**无法可靠抓取**，不作为数据源承诺；结果以公开网页（新闻、政策、行业媒体、官方公告）为主。
+- 本地验证：`pnpm try-search "AI 漫画"`（展示扩展后的检索词）、`pnpm try-extract <url>`、`pnpm try-analyze`（示例机会数据，标注 example）。
 
 ## 下一步（Phase 6）
 

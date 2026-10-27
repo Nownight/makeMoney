@@ -1,11 +1,20 @@
 /**
- * Live check of the ScrapeGraphAI search adapter + filter (no database).
+ * Live check of query expansion + multi-query search + filter (no database).
  *
- *   pnpm --filter @research/web try-search "AI 编程工具"
+ *   pnpm --filter @research/web try-search "AI 漫画"
  *
- * Reads SGAI_API_KEY from apps/web/.env.local. Costs ~2 credits per result.
+ * Reads SGAI_API_KEY (and optional OPENAI_API_KEY / ANALYSIS_MODEL /
+ * LLM_BASE_URL for query expansion; templates otherwise) from
+ * apps/web/.env.local. Costs ~2 credits per raw result (~min(limit*2, 20)).
  */
 import { createScrapeGraphClient, filterSources } from "@research/scrapegraph";
+
+import {
+  planQueries,
+  providerFromEnv,
+  searchQueries,
+  searchResultCount,
+} from "../src/lib/reports/queries";
 
 try {
   process.loadEnvFile(new URL("../.env.local", import.meta.url));
@@ -28,13 +37,18 @@ if (!apiKey) {
 
 const client = createScrapeGraphClient({ apiKey });
 const startedAt = Date.now();
-const response = await client.search({ query, numResults: Math.min(sourceLimit * 2, 20) });
-const sources = filterSources(response.results, query, sourceLimit);
+const plan = await planQueries(query, null, providerFromEnv(process.env));
+console.log(`Domain: ${query}\nQueries (${plan.source}${plan.error ? `: ${plan.error}` : ""}):`);
+for (const q of plan.queries) console.log(`  - ${q}`);
 
-console.log(`Query: ${query}`);
-console.log(`Raw results: ${response.results.length}, kept: ${sources.length}, ${Date.now() - startedAt}ms\n`);
+const search = await searchQueries(client, plan.queries, searchResultCount(sourceLimit));
+const sources = filterSources(search.results, query, sourceLimit);
+
+console.log(
+  `\nRaw results: ${search.results.length} (${search.numResultsPerQuery}/query, ${search.failedQueries} failed), kept: ${sources.length}, ${Date.now() - startedAt}ms\n`,
+);
 for (const source of sources) {
-  console.log(`#${source.searchRank} [${source.qualityScore}] ${source.title}`);
+  console.log(`#${source.searchRank} [${source.qualityScore}] ${source.title}${source.publishedAt ? ` (${source.publishedAt})` : ""}`);
   console.log(`   ${source.url}`);
   console.log(`   ${source.snippet.slice(0, 120)}\n`);
 }

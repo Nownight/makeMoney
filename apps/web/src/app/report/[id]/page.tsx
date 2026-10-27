@@ -19,11 +19,16 @@ import {
   reportStatusMessage,
   reportStatusVariant,
 } from "@/lib/reports/status";
-import { sourceStatusBadge, toProductRows } from "@/lib/reports/products";
+import {
+  parseSearchQueries,
+  sourceStatusBadge,
+  supportingSources,
+  toOpportunityRows,
+} from "@/lib/reports/opportunities";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "研究报告",
+  title: "契机报告",
 };
 
 const UUID_PATTERN =
@@ -54,7 +59,7 @@ export default async function ReportPage({
   const supabase = await createClient();
   const { data: report } = await supabase
     .from("reports")
-    .select("id, query, title, status, progress, source_limit, error_message, executive_summary, analysis_json, created_at")
+    .select("id, query, title, status, progress, source_limit, error_message, executive_summary, analysis_json, search_queries, created_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -75,13 +80,13 @@ export default async function ReportPage({
     .eq("report_id", report.id)
     .order("created_at", { ascending: true });
 
-  const products = toProductRows(items ?? [], sources ?? []);
+  const opportunities = toOpportunityRows(items ?? [], sources ?? []);
+  const searchQueries = parseSearchQueries(report.search_queries);
   const sourceCount = sources?.length ?? 0;
   const extractedCount = sources?.filter((s) => s.status === "extracted").length ?? 0;
   const progress = clampProgress(report.progress);
   const parsedAnalysis = reportAnalysisSchema.safeParse(report.analysis_json);
   const analysis = parsedAnalysis.success ? parsedAnalysis.data : null;
-  const productNames = new Map(products.map((product) => [product.id, product.name]));
 
   return (
     <div className="space-y-6">
@@ -133,7 +138,7 @@ export default async function ReportPage({
               className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
             >
               <CircleAlert className="mt-0.5 size-4 shrink-0" />
-              <p>{report.error_message ?? "研究失败，请稍后重试"}</p>
+              <p>{report.error_message ?? "生成失败，请稍后重试"}</p>
             </div>
           ) : (
             <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
@@ -145,6 +150,19 @@ export default async function ReportPage({
               })}
             </p>
           )}
+
+          {searchQueries.length > 0 ? (
+            <div className="space-y-2 text-sm">
+              <span className="text-muted-foreground">检索关键词</span>
+              <div className="flex flex-wrap gap-2">
+                {searchQueries.map((query) => (
+                  <Badge key={query} variant="outline" className="font-normal">
+                    {query}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -152,83 +170,78 @@ export default async function ReportPage({
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <CardTitle>分析摘要</CardTitle>
+              <CardTitle>契机摘要</CardTitle>
               <Badge variant="secondary">AI 生成</Badge>
             </div>
-            <CardDescription>基于提取的数据自动生成，请结合来源核实。</CardDescription>
+            <CardDescription>基于提取的信号自动生成，评分为 AI 主观判断，请结合来源核实。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 text-sm">
             <p className="leading-relaxed">{report.executive_summary ?? analysis.executiveSummary}</p>
 
-            <AnalysisList title="关键发现" items={analysis.keyFindings} />
-
-            {analysis.rankings.length > 0 ? (
-              <section className="space-y-3">
-                <h3 className="font-medium">排名</h3>
-                {analysis.rankings.map((ranking, index) => (
-                  <div key={`${ranking.title}-${index}`} className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>{ranking.title}</span>
-                      <span className="text-xs text-muted-foreground">（{ranking.metric}）</span>
-                      {ranking.isSubjective ? <Badge variant="outline">AI 分析</Badge> : null}
-                    </div>
-                    <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
-                      {ranking.items.map((item) => (
-                        <li key={item.itemId}>
-                          {productNames.get(item.itemId) ?? "未知条目"}：{item.value}
-                        </li>
-                      ))}
-                    </ol>
+            <section className="grid gap-4 md:grid-cols-2">
+              {analysis.topOpportunities.map((opportunity, index) => (
+                <div key={`${opportunity.name}-${index}`} className="space-y-3 rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium">{opportunity.name}</h3>
+                    <Badge variant="outline">AI 分析</Badge>
                   </div>
-                ))}
-              </section>
-            ) : null}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <ScoreBadge label="时效性" value={opportunity.scores.timeliness} />
+                    <ScoreBadge label="证据" value={opportunity.scores.evidence} />
+                    <ScoreBadge label="可行性" value={opportunity.scores.feasibility} />
+                  </div>
+                  <OpportunityField label="为什么是现在" text={opportunity.whyNow} />
+                  <OpportunityField label="适合谁" text={opportunity.whoFits} />
+                  <OpportunityField label="如何起步" text={opportunity.howToStart} />
+                  <AnalysisList title="风险" items={opportunity.risks} />
+                  <SourceLinks links={supportingSources(opportunity.itemIds, opportunities)} />
+                </div>
+              ))}
+            </section>
 
-            <AnalysisList title="结论" items={analysis.conclusions} />
+            <AnalysisList title="趋势" items={analysis.trends} />
             <AnalysisList title="注意事项" items={analysis.warnings} />
           </CardContent>
         </Card>
       ) : null}
 
-      {products.length > 0 ? (
+      {opportunities.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>产品概览</CardTitle>
+            <CardTitle>机会信号</CardTitle>
             <CardDescription>
-              共提取 {products.length} 个产品，成功分析 {extractedCount} / {sourceCount} 个来源。
+              共提取 {opportunities.length} 条机会信号，成功分析 {extractedCount} / {sourceCount} 个来源。
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b">
-                  <th className="py-2 pr-4 font-medium">产品</th>
-                  <th className="py-2 pr-4 font-medium">公司</th>
-                  <th className="py-2 pr-4 font-medium">最低价格</th>
-                  <th className="py-2 pr-4 font-medium">免费版</th>
-                  <th className="py-2 pr-4 font-medium">功能数</th>
+                  <th className="py-2 pr-4 font-medium">机会</th>
+                  <th className="py-2 pr-4 font-medium">类型</th>
+                  <th className="py-2 pr-4 font-medium">日期</th>
+                  <th className="py-2 pr-4 font-medium">门槛</th>
+                  <th className="py-2 pr-4 font-medium">竞争</th>
                   <th className="py-2 font-medium">来源</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td className="py-2 pr-4 font-medium">{product.name}</td>
-                    <td className="py-2 pr-4">{product.company ?? "—"}</td>
-                    <td className="py-2 pr-4">{product.cheapest}</td>
-                    <td className="py-2 pr-4">
-                      {product.freePlan === null ? "未知" : product.freePlan ? "有" : "无"}
-                    </td>
-                    <td className="py-2 pr-4">{product.featureCount}</td>
+                {opportunities.map((row) => (
+                  <tr key={row.id}>
+                    <td className="py-2 pr-4 font-medium">{row.title}</td>
+                    <td className="py-2 pr-4">{row.typeLabel}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap">{row.eventDate ?? "未知"}</td>
+                    <td className="py-2 pr-4">{row.barrier}</td>
+                    <td className="py-2 pr-4">{row.competition}</td>
                     <td className="py-2">
-                      {product.sourceUrl ? (
+                      {row.sourceUrl ? (
                         <a
-                          href={product.sourceUrl}
+                          href={row.sourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs hover:underline"
                         >
-                          {product.sourceDomain}
+                          {row.sourceDomain}
                           <ExternalLink className="size-3 text-muted-foreground" />
                         </a>
                       ) : (
@@ -300,5 +313,44 @@ function AnalysisList({ title, items }: { title: string; items: string[] }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+function ScoreBadge({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-md bg-muted px-2 py-0.5">
+      {label} <span className="font-medium">{value}</span>/5
+    </span>
+  );
+}
+
+function OpportunityField({ label, text }: { label: string; text: string }) {
+  if (!text) return null;
+  return (
+    <p className="leading-relaxed">
+      <span className="text-muted-foreground">{label}：</span>
+      {text}
+    </p>
+  );
+}
+
+function SourceLinks({ links }: { links: Array<{ url: string; domain: string }> }) {
+  if (links.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-muted-foreground">支撑来源</span>
+      {links.map((link) => (
+        <a
+          key={link.url}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 hover:underline"
+        >
+          {link.domain}
+          <ExternalLink className="size-3 text-muted-foreground" />
+        </a>
+      ))}
+    </div>
   );
 }

@@ -114,7 +114,7 @@ export function SignUpForm() {
       </SubmitButton>
 
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        注册即表示你同意我们仅为提供服务而处理你的账号与研究数据。
+        注册即表示你同意我们仅为提供服务而处理你的账号与报告数据。
       </p>
     </form>
   );

@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "重置密码",
-  description: "通过邮箱重置研图 AI 账号密码。",
+  description: "通过邮箱重置契机 AI 账号密码。",
 };
 
 export default async function ForgotPasswordPage() {

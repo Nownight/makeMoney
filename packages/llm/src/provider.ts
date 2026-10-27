@@ -1,12 +1,19 @@
 import type { z } from "zod";
 
-import { buildMessages, type ChatMessage } from "./prompt";
+import {
+  buildMessages,
+  buildQueryExpansionMessages,
+  DEFAULT_LANGUAGE,
+  type ChatMessage,
+} from "./prompt";
+import { cleanQueries, queryExpansionSchema } from "./queries";
 import {
   filterUnknownItemIds,
   reportAnalysisSchema,
   type AnalysisInput,
   type AnalysisResult,
   type LLMProvider,
+  type QueryExpansionResult,
   type ReportAnalysis,
   type TokenUsage,
 } from "./schema";
@@ -122,9 +129,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
     }
   }
 
-  async analyze(input: AnalysisInput): Promise<AnalysisResult> {
-    const messages = buildMessages(input);
-    const knownIds = new Set(input.items.map((item) => item.itemId));
+  /**
+   * Chat completion + JSON parse + Zod validation with retries; validation
+   * errors are fed back to the model.
+   */
+  private async completeJson<T>(
+    messages: ChatMessage[],
+    schema: z.ZodType<T>,
+    label: string,
+  ): Promise<{ data: T; attempts: number; usage: TokenUsage | null }> {
     let usage: TokenUsage | null = null;
 
     for (let attempt = 0; ; attempt += 1) {
@@ -141,17 +154,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
           json = undefined;
         }
 
-        const parsed = json === undefined ? null : reportAnalysisSchema.safeParse(json);
-        if (parsed?.success) {
-          const filtered = filterUnknownItemIds(parsed.data, knownIds);
-          return {
-            analysis: filtered.analysis,
-            droppedIds: filtered.dropped,
-            model: this.options.model,
-            attempts: attempt + 1,
-            usage,
-          };
-        }
+        const parsed = json === undefined ? null : schema.safeParse(json);
+        if (parsed?.success) return { data: parsed.data, attempts: attempt + 1, usage };
 
         feedback = parsed
           ? `Your JSON did not match the required shape: ${formatZodError(parsed.error)}`
@@ -169,10 +173,33 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
       const delay = RETRY_DELAYS_MS[attempt];
       if (delay === undefined) {
-        throw new LLMError(`analysis failed after ${attempt + 1} attempts: ${feedback}`, null, false);
+        throw new LLMError(`${label} failed after ${attempt + 1} attempts: ${feedback}`, null, false);
       }
       await this.sleep(delay);
     }
+  }
+
+  async analyze(input: AnalysisInput): Promise<AnalysisResult> {
+    const knownIds = new Set(input.items.map((item) => item.itemId));
+    const result = await this.completeJson(buildMessages(input), reportAnalysisSchema, "analysis");
+    const filtered = filterUnknownItemIds(result.data, knownIds);
+    return {
+      analysis: filtered.analysis,
+      droppedIds: filtered.dropped,
+      model: this.options.model,
+      attempts: result.attempts,
+      usage: result.usage,
+    };
+  }
+
+  async expandQueries(domain: string, language?: string | null): Promise<QueryExpansionResult> {
+    const messages = buildQueryExpansionMessages(
+      domain,
+      language || DEFAULT_LANGUAGE,
+      new Date().getFullYear(),
+    );
+    const result = await this.completeJson(messages, queryExpansionSchema, "query expansion");
+    return { queries: cleanQueries(result.data.queries), model: this.options.model, usage: result.usage };
   }
 }
 

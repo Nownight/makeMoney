@@ -24,7 +24,7 @@ function setup(responses: Response[]) {
   return { provider, fetchMock, sleep };
 }
 
-const input = { query: "AI 编程工具", items: exampleItems };
+const input = { query: "AI 漫画", items: exampleItems };
 
 describe("OpenAICompatibleProvider", () => {
   it("posts a chat completion and returns validated output", async () => {
@@ -58,12 +58,12 @@ describe("OpenAICompatibleProvider", () => {
   });
 
   it("feeds Zod errors back and gives up after 3 attempts", async () => {
-    const bad = JSON.stringify({ ...exampleAnalysis, keyFindings: [] });
+    const bad = JSON.stringify({ ...exampleAnalysis, topOpportunities: [] });
     const { provider, fetchMock } = setup([chat(bad), chat(bad), chat(bad)]);
     await expect(provider.analyze(input)).rejects.toThrow(/after 3 attempts/);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const retryMessages = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)).messages;
-    expect(retryMessages.at(-1).content).toMatch(/keyFindings/);
+    expect(retryMessages.at(-1).content).toMatch(/topOpportunities/);
   });
 
   it("does not retry 4xx and retries 5xx", async () => {
@@ -78,16 +78,39 @@ describe("OpenAICompatibleProvider", () => {
   it("drops hallucinated ids", async () => {
     const withFake = {
       ...exampleAnalysis,
-      rankings: [{ ...exampleAnalysis.rankings[0], items: [{ itemId: "fake", value: 1 }] }],
+      topOpportunities: [
+        ...exampleAnalysis.topOpportunities,
+        { ...exampleAnalysis.topOpportunities[0], itemIds: ["fake"] },
+      ],
     };
     const { provider } = setup([chat(JSON.stringify(withFake))]);
     const result = await provider.analyze(input);
     expect(result.droppedIds).toBe(1);
-    expect(result.analysis.rankings[0].items).toEqual([]);
+    expect(result.analysis.topOpportunities).toHaveLength(exampleAnalysis.topOpportunities.length);
   });
 
   it("is an LLMError for network failures", () => {
     expect(new LLMError("x", null, true)).toBeInstanceOf(Error);
     expect(parseJsonContent('```\n{"a":1}\n```')).toEqual({ a: 1 });
+  });
+});
+
+describe("expandQueries", () => {
+  it("returns cleaned queries from the model", async () => {
+    const queries = ["AI 漫画 新产品 2026", "AI 漫画 融资 2026", "ai 漫画 融资 2026", "AI 漫画 痛点", "AI 漫画 政策 2026"];
+    const { provider, fetchMock } = setup([chat(JSON.stringify({ queries }))]);
+    const result = await provider.expandQueries("AI 漫画", "zh-CN");
+    expect(result.queries).toEqual(["AI 漫画 新产品 2026", "AI 漫画 融资 2026", "AI 漫画 痛点", "AI 漫画 政策 2026"]);
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.messages[0].content).toContain(String(new Date().getFullYear()));
+  });
+
+  it("retries when the model returns too few queries", async () => {
+    const { provider, fetchMock } = setup([
+      chat(JSON.stringify({ queries: ["a"] })),
+      chat(JSON.stringify({ queries: ["a", "b", "c", "d"] })),
+    ]);
+    await expect(provider.expandQueries("x")).resolves.toMatchObject({ queries: ["a", "b", "c", "d"] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

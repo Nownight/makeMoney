@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "登录",
-  description: "登录研图 AI，查看和管理你的研究报告。",
+  description: "登录契机 AI，查看和管理你的机会报告。",
 };
 
 type LoginPageProps = {
@@ -32,7 +32,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <AuthCard
       title="欢迎回来"
-      description="登录后继续你的研究，查看历史报告与下载记录。"
+      description="登录后继续发现契机，查看历史报告与下载记录。"
       footer={
         <>
           还没有账号？

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cheapestPrice,
   normalizeBillingPeriod,
   normalizeCurrency,
-  normalizeExtractedData,
+  normalizeDate,
+  normalizeOpportunity,
   normalizePrice,
   normalizeStringList,
 } from "./normalize";
@@ -64,47 +64,50 @@ describe("helpers", () => {
   it("dedupes and trims string lists", () => {
     expect(normalizeStringList(["  A  b ", "a b", "", "  ", "C"])).toEqual(["A b", "C"]);
   });
+});
 
-  it("finds the cheapest known price", () => {
-    const list = [price("$20/month"), price(null), price("$10/month")];
-    expect(cheapestPrice(list)?.amount).toBe(10);
-    expect(cheapestPrice([price(null)])).toBeNull();
-    expect(cheapestPrice([price("$5"), price("免费")])?.amount).toBe(0);
+describe("normalizeDate", () => {
+  it("normalizes common formats to YYYY-MM-DD", () => {
+    expect(normalizeDate("2026-03-05")).toBe("2026-03-05");
+    expect(normalizeDate("2026-03-05T10:00:00Z")).toBe("2026-03-05");
+    expect(normalizeDate("2026/3/5")).toBe("2026-03-05");
+    expect(normalizeDate("2026年3月5日")).toBe("2026-03-05");
+  });
+
+  it("returns null for unknown, partial or invalid dates", () => {
+    expect(normalizeDate(null)).toBeNull();
+    expect(normalizeDate("")).toBeNull();
+    expect(normalizeDate("2026年3月")).toBeNull();
+    expect(normalizeDate("2026-02-30")).toBeNull();
+    expect(normalizeDate("上周")).toBeNull();
   });
 });
 
-describe("normalizeExtractedData", () => {
-  it("normalizes a full product without inventing data", () => {
-    const result = normalizeExtractedData({
-      name: "  Cursor ",
-      company: " ",
-      category: null,
-      pricing: [
-        { plan: "Hobby", price: "免费", currency: null, billingPeriod: null },
-        { plan: " Pro ", price: "$20/month", currency: null, billingPeriod: null },
-      ],
-      freePlan: null,
-      features: ["Tab", "tab", " Agent "],
-      targetUsers: [],
-      advantages: [],
-      limitations: [""],
-      sourceEvidence: [{ field: "pricing", text: " Pro  $20 " }, { field: "", text: "x" }],
+describe("normalizeOpportunity", () => {
+  it("trims, dedupes lists and normalizes the date without inventing data", () => {
+    const result = normalizeOpportunity({
+      title: "  AI 漫画  工具 ",
+      type: "new_tool",
+      summary: " 摘要 ",
+      signals: ["A", "a", " "],
+      evidence: [{ field: "eventDate", text: " 2026年3月5日  发布 " }, { field: "", text: "x" }],
+      eventDate: "2026年3月5日",
+      monetization: [],
+      entryBarrier: null,
+      competition: "high",
+      targetAudience: [" 作者 ", "作者"],
     });
-
     expect(result).toEqual({
-      name: "Cursor",
-      company: null,
-      category: null,
-      pricing: [
-        { plan: "Hobby", amount: 0, currency: null, period: null },
-        { plan: "Pro", amount: 20, currency: "USD", period: "month" },
-      ],
-      freePlan: null,
-      features: ["Tab", "Agent"],
-      targetUsers: [],
-      advantages: [],
-      limitations: [],
-      sourceEvidence: [{ field: "pricing", text: "Pro $20" }],
+      title: "AI 漫画 工具",
+      type: "new_tool",
+      summary: "摘要",
+      signals: ["A"],
+      evidence: [{ field: "eventDate", text: "2026年3月5日 发布" }],
+      eventDate: "2026-03-05",
+      monetization: [],
+      entryBarrier: null,
+      competition: "high",
+      targetAudience: ["作者"],
     });
   });
 });

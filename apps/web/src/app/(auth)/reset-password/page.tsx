@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "设置新密码",
-  description: "为研图 AI 账号设置新密码。",
+  description: "为契机 AI 账号设置新密码。",
 };
 
 export default async function ResetPasswordPage() {

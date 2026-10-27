@@ -19,7 +19,7 @@ export function SiteFooter() {
           <Link className="hover:text-foreground" href="/signup">
             注册
           </Link>
-          <span className="text-xs">© {new Date().getFullYear()} 研图 AI</span>
+          <span className="text-xs">© {new Date().getFullYear()} 契机 AI</span>
         </div>
       </div>
     </footer>

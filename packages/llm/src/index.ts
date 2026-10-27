@@ -1,4 +1,19 @@
-export { buildMessages, buildSystemPrompt, buildUserPrompt, DEFAULT_LANGUAGE, type ChatMessage } from "./prompt";
+export {
+  buildMessages,
+  buildQueryExpansionMessages,
+  buildSystemPrompt,
+  buildUserPrompt,
+  DEFAULT_LANGUAGE,
+  type ChatMessage,
+} from "./prompt";
+export {
+  cleanQueries,
+  fallbackQueries,
+  MAX_QUERIES,
+  MIN_QUERIES,
+  perQueryResults,
+  queryExpansionSchema,
+} from "./queries";
 export {
   DEFAULT_LLM_BASE_URL,
   LLMError,
@@ -9,7 +24,12 @@ export {
   type OpenAICompatibleOptions,
 } from "./provider";
 export {
+  chartSpecSchema,
   chartTypeSchema,
+  topOpportunitySchema,
+  type ChartSpec,
+  type QueryExpansionResult,
+  type TopOpportunity,
   filterUnknownItemIds,
   reportAnalysisSchema,
   type AnalysisInput,

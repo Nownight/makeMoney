@@ -41,6 +41,7 @@ export type ReportRow = {
   language: string | null;
   executive_summary: string | null;
   analysis_json: Json | null;
+  search_queries: Json | null;
   visualization_json: Json | null;
   is_paid: boolean;
   error_message: string | null;
@@ -114,6 +115,7 @@ export type Database = {
           language?: string | null;
           executive_summary?: string | null;
           analysis_json?: Json | null;
+          search_queries?: Json | null;
           visualization_json?: Json | null;
           is_paid?: boolean;
           error_message?: string | null;
@@ -126,6 +128,7 @@ export type Database = {
           progress?: number;
           executive_summary?: string | null;
           analysis_json?: Json | null;
+          search_queries?: Json | null;
           visualization_json?: Json | null;
           is_paid?: boolean;
           error_message?: string | null;

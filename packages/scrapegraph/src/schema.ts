@@ -10,6 +10,9 @@ export const searchResultSchema = z.object({
   title: z.string().nullish().transform((value) => value ?? ""),
   content: z.string().nullish().transform((value) => value ?? ""),
   provider: z.string().optional(),
+  // Not documented for every provider; parsed if present.
+  publishedAt: z.string().nullish(),
+  date: z.string().nullish(),
 });
 
 export const searchResponseSchema = z.object({

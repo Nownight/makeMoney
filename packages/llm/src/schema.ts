@@ -2,33 +2,44 @@ import { z } from "zod";
 
 export const chartTypeSchema = z.enum(["bar", "line", "pie", "scatter"]);
 
+export const chartSpecSchema = z.object({
+  type: chartTypeSchema,
+  title: z.string(),
+  description: z.string(),
+  xKey: z.string(),
+  yKeys: z.array(z.string()),
+  sourceItemIds: z.array(z.string()),
+});
+
+/** Subjective AI judgment, integer 1-5. */
+const scoreSchema = z.number().int().min(1).max(5);
+
+export const topOpportunitySchema = z.object({
+  itemIds: z.array(z.string()).min(1),
+  name: z.string().min(1),
+  whyNow: z.string(),
+  whoFits: z.string(),
+  howToStart: z.string(),
+  risks: z.array(z.string()),
+  scores: z.object({
+    timeliness: scoreSchema,
+    evidence: scoreSchema,
+    feasibility: scoreSchema,
+  }),
+});
+
 export const reportAnalysisSchema = z.object({
   title: z.string().min(1),
   executiveSummary: z.string().min(1),
-  keyFindings: z.array(z.string()).min(3).max(8),
-  comparisonDimensions: z.array(z.string()),
-  rankings: z.array(
-    z.object({
-      title: z.string(),
-      metric: z.string(),
-      isSubjective: z.boolean(),
-      items: z.array(z.object({ itemId: z.string(), value: z.number() })),
-    }),
-  ),
-  charts: z.array(
-    z.object({
-      type: chartTypeSchema,
-      title: z.string(),
-      description: z.string(),
-      xKey: z.string(),
-      yKeys: z.array(z.string()),
-      sourceItemIds: z.array(z.string()),
-    }),
-  ),
-  conclusions: z.array(z.string()),
+  // Brief asks for 3-8; min 1 so thin-evidence reports still complete (prompt asks for 3-8).
+  topOpportunities: z.array(topOpportunitySchema).min(1).max(8),
+  trends: z.array(z.string()),
   warnings: z.array(z.string()),
+  charts: z.array(chartSpecSchema).optional().default([]),
 });
 
+export type ChartSpec = z.infer<typeof chartSpecSchema>;
+export type TopOpportunity = z.infer<typeof topOpportunitySchema>;
 export type ReportAnalysis = z.infer<typeof reportAnalysisSchema>;
 
 /** One normalized extracted item; `data` is extracted_items.normalized_data. */
@@ -62,25 +73,33 @@ export type AnalysisResult = {
   droppedIds: number;
 };
 
+export type QueryExpansionResult = {
+  queries: string[];
+  model: string;
+  usage: TokenUsage | null;
+};
+
 export interface LLMProvider {
   analyze(input: AnalysisInput): Promise<AnalysisResult>;
+  expandQueries(domain: string, language?: string | null): Promise<QueryExpansionResult>;
 }
 
 /**
- * Removes ranking items / chart ids that do not exist in the input
- * (hallucinated ids) and adds a warning when anything was dropped.
+ * Removes itemIds that do not exist in the input (hallucinated ids), drops
+ * opportunities left without any supporting item, and adds a warning when
+ * anything was dropped.
  */
 export function filterUnknownItemIds(
   analysis: ReportAnalysis,
   knownIds: ReadonlySet<string>,
-  warning = "部分排名或图表引用了不存在的数据条目，已自动移除。",
+  warning = "部分契机或图表引用了不存在的数据条目，已自动移除。",
 ): { analysis: ReportAnalysis; dropped: number } {
   let dropped = 0;
 
-  const rankings = analysis.rankings.map((ranking) => {
-    const items = ranking.items.filter((item) => knownIds.has(item.itemId));
-    dropped += ranking.items.length - items.length;
-    return { ...ranking, items };
+  const topOpportunities = analysis.topOpportunities.flatMap((opportunity) => {
+    const itemIds = opportunity.itemIds.filter((id) => knownIds.has(id));
+    dropped += opportunity.itemIds.length - itemIds.length;
+    return itemIds.length > 0 ? [{ ...opportunity, itemIds }] : [];
   });
 
   const charts = analysis.charts.map((chart) => {
@@ -93,7 +112,7 @@ export function filterUnknownItemIds(
     dropped,
     analysis: {
       ...analysis,
-      rankings,
+      topOpportunities,
       charts,
       warnings: dropped > 0 ? [...analysis.warnings, warning] : analysis.warnings,
     },

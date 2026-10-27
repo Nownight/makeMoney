@@ -1,4 +1,5 @@
 import { looksBlocked } from "./blocked";
+import { normalizeDate } from "./normalize";
 import type { SearchResult } from "./schema";
 
 export type FilteredSource = {
@@ -8,6 +9,8 @@ export type FilteredSource = {
   snippet: string;
   searchRank: number;
   qualityScore: number;
+  /** YYYY-MM-DD from the search result, or null. */
+  publishedAt: string | null;
 };
 
 const MAX_PER_DOMAIN = 2;
@@ -119,6 +122,21 @@ export function scoreSource(url: string, rank: number, query: string): number {
   return Math.min(100, Math.max(0, score));
 }
 
+const FRESH_URL = /\/\/([^/]*\.)?news\.|\/news\/|\/blog\/|36kr\.com|producthunt\.com|techcrunch\.com|github\.com\/trending/i;
+const FRESH_TITLE = /发布|融资|榜单|最新|launch|funding|raises|2026/i;
+const STALE_URL = /baike\.|wiki|zhidao\./i;
+const STALE_TITLE = /什么是|如何|what is|how to/i;
+
+/** Small heuristic: favor news/launch/funding/list pages, penalize encyclopedia/how-to. */
+export function recencyBonus(url: string, title: string): number {
+  let bonus = 0;
+  if (FRESH_URL.test(url)) bonus += 10;
+  if (FRESH_TITLE.test(title)) bonus += 10;
+  if (STALE_URL.test(url)) bonus -= 20;
+  if (STALE_TITLE.test(title)) bonus -= 10;
+  return bonus;
+}
+
 export function toSnippet(content: string): string {
   const text = content
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
@@ -147,13 +165,16 @@ export function filterSources(
     seen.add(url);
 
     const searchRank = index + 1;
+    const title = result.title.trim();
+    const score = scoreSource(url, searchRank, query) + recencyBonus(url, title);
     candidates.push({
       url,
-      title: result.title.trim() || domainOf(url),
+      title: title || domainOf(url),
       domain: domainOf(url),
       snippet: toSnippet(result.content),
       searchRank,
-      qualityScore: scoreSource(url, searchRank, query),
+      qualityScore: Math.min(100, Math.max(0, score)),
+      publishedAt: normalizeDate(result.publishedAt ?? result.date),
     });
   });
 
