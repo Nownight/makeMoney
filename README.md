@@ -2,7 +2,7 @@
 
 输入一个研究主题，自动搜索多个可信网页、提取结构化数据、对比分析，并生成带来源引用的可视化研究报告。
 
-当前仓库已完成 **Phase 2（Report 创建与历史）**。后续阶段严格按 PRD 顺序推进，不一次性铺开全部功能。
+当前仓库已完成 **Phase 3（ScrapeGraphAI 来源搜索）**。后续阶段严格按 PRD 顺序推进，不一次性铺开全部功能。
 
 ---
 
@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 1 | Next.js / Tailwind / shadcn / Supabase Auth / 登录注册 | ✅ 代码与自动化检查完成，待真实 Supabase 实例做端到端验证 |
 | 2 | 创建 Report、Dashboard 历史列表 | ✅ 代码与自动化检查完成，需在 Supabase 执行 migration |
-| 3 | ScrapeGraphAI Search + Source 落库 | ⬜ |
+| 3 | ScrapeGraphAI Search + Source 落库 | ✅ 代码与自动化检查完成，需执行 migration 并配置密钥 |
 | 4 | ScrapeGraphAI Extract + Zod 校验 | ⬜ |
 | 5 | LLM 结构化分析 | ⬜ |
 | 6 | 报告 UI（摘要 / 表格 / 图表 / 来源） | ⬜ |
@@ -256,6 +256,16 @@ research-saas/
 - `/report/[id]`：登录保护，RLS 读取，他人或不存在的报告返回 404；展示主题、状态、进度、创建时间。
 - 本阶段**不扣额度、不执行研究**。
 
-## 下一步（Phase 3）
+## Phase 3（已完成）
 
-ScrapeGraphAI Search + `sources` 落库。
+- `packages/scrapegraph`：服务端适配器，直接调用文档化 REST 接口 `POST https://v2-api.scrapegraphai.com/api/search`（[文档](https://docs.scrapegraphai.com/api-reference/endpoint/search)），Zod 校验响应，失败重试 2 次（2s / 5s）。不带 `prompt`，费用 **2 credits / 结果**；只接受 HTML。
+- `filterSources()`：URL 归一化去重（去 hash、尾斜杠、`utm_*`）、过滤非 http(s) / 搜索结果页 / 登录注册页 / 二进制文件，每个域名最多 2 条，按简单质量分排序后截断到 `source_limit`。
+- `supabase/migrations/20261027020000_create_sources.sql`：`sources` 表（只能读取自己报告的来源，客户端无写权限）+ `reports.error_message`。
+- 创建报告后同步执行搜索（Phase 7 Worker 前的临时方案）：`queued → searching(10%) → queued(20%)`，表示“来源已就绪，等待下一阶段（提取）”；搜索失败或可用来源少于 2 个则 `failed` 并写入 `error_message`。
+- `/report/[id]` 展示来源列表与失败原因。
+- 需要服务端环境变量：`SUPABASE_SERVICE_ROLE_KEY`、`SGAI_API_KEY`。
+- 本地验证真实搜索：`pnpm try-search "AI 编程工具"`（读取 `apps/web/.env.local`，不写数据库）。
+
+## 下一步（Phase 4）
+
+ScrapeGraphAI Extract + Zod 校验。

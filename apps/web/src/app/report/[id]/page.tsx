@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, CircleAlert, Clock, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -51,13 +51,20 @@ export default async function ReportPage({
   const supabase = await createClient();
   const { data: report } = await supabase
     .from("reports")
-    .select("id, query, status, progress, source_limit, created_at")
+    .select("id, query, status, progress, source_limit, error_message, created_at")
     .eq("id", id)
     .maybeSingle();
 
   if (!report) {
     notFound();
   }
+
+  const { data: sources } = await supabase
+    .from("sources")
+    .select("id, url, title, domain, snippet, search_rank, quality_score")
+    .eq("report_id", report.id)
+    .order("quality_score", { ascending: false, nullsFirst: false })
+    .order("search_rank", { ascending: true });
 
   const progress = clampProgress(report.progress);
 
@@ -105,11 +112,63 @@ export default async function ReportPage({
             </div>
           </div>
 
-          <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            报告已创建并进入队列。来源搜索、数据提取、分析与可视化将在后续阶段接入，届时会在此页面展示进度与结果。
-          </p>
+          {report.status === "failed" ? (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
+              <CircleAlert className="mt-0.5 size-4 shrink-0" />
+              <p>{report.error_message ?? "研究失败，请稍后重试"}</p>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              {sources && sources.length > 0
+                ? "来源已就绪，等待下一阶段处理。数据提取、分析与可视化将在后续阶段接入。"
+                : "报告已创建并进入队列。来源搜索完成后会在此页面展示。"}
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      {sources && sources.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>数据来源</CardTitle>
+            <CardDescription>共 {sources.length} 个来源，按质量分排序。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="divide-y rounded-lg border">
+              {sources.map((source) => (
+                <li key={source.id} className="space-y-1.5 px-4 py-3">
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                  >
+                    {source.title ?? source.domain}
+                    <ExternalLink className="size-3.5 text-muted-foreground" />
+                  </a>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>{source.domain}</span>
+                    {source.search_rank !== null ? (
+                      <span>搜索排名 #{source.search_rank}</span>
+                    ) : null}
+                    {source.quality_score !== null ? (
+                      <span>质量分 {source.quality_score}</span>
+                    ) : null}
+                  </div>
+                  {source.snippet ? (
+                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      {source.snippet}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

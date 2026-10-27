@@ -1,0 +1,20 @@
+{
+  "id": "27783ace-462a-45d2-9ff1-cdf3a22adf87",
+  "results": [
+    {
+      "url": "https://scrapegraphai.com/pricing",
+      "title": "Pricing - ScrapeGraphAI",
+      "content": "// Choose the plan that fits your needs\n\n## Simple, transparent pricing ...",
+      "provider": "serper"
+    },
+    {
+      "url": "https://docs.scrapegraphai.com/services/search#pricing",
+      "title": "Search",
+      "content": "AI-powered web search"
+    }
+  ],
+  "metadata": {
+    "search": {},
+    "pages": { "requested": 3, "scraped": 2 }
+  }
+}

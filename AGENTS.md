@@ -6,7 +6,7 @@
 
 研图 AI：输入一个产品 / 公司 / 工具 / 服务的研究主题，自动搜索、提取、分析并生成带来源引用的可视化报告。
 
-当前只完成 **Phase 1（项目框架 + 账号体系）**。不要一次性实现全部路线图。
+当前已完成 **Phase 1–3（账号体系、Report 创建与历史、ScrapeGraphAI 来源搜索）**。不要一次性实现全部路线图。
 
 ## 工作纪律
 
@@ -71,6 +71,7 @@ apps/web/src/components/   # auth / layout / ui
 apps/web/src/lib/auth/     # actions、callback、session、routes、redirect、validation、errors
 apps/web/src/lib/supabase/ # browser / server / database.types
 apps/web/src/proxy.ts      # 会话刷新 + 路由守卫
+packages/scrapegraph/      # ScrapeGraphAI 适配器（search + filterSources），仅服务端
 supabase/migrations/       # 数据库结构、RLS、触发器
 docs/architecture.md       # 架构、阶段边界、安全不变量
 ```

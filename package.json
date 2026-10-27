@@ -7,13 +7,14 @@
     "dev": "pnpm --filter @research/web dev",
     "build": "pnpm --filter @research/web build",
     "lint": "pnpm --filter @research/web lint",
-    "typecheck": "pnpm --filter @research/web typecheck",
-    "test": "pnpm --filter @research/web test",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "test:watch": "pnpm --filter @research/web test:watch",
     "supabase": "supabase",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "try-search": "pnpm --filter @research/web try-search"
   },
   "devDependencies": {
     "supabase": "^2.122.0"

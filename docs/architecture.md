@@ -156,6 +156,12 @@ profiles (
 3. Free 计划的 `source_limit` 由服务端收敛为 5。
 4. `POST /api/reports` 与 Dashboard Server Action 共用 `createReportForCurrentUser()`。
 
+### 4.7 来源搜索（Phase 3）
+
+- `packages/scrapegraph` 是唯一调用 ScrapeGraphAI 的地方（Web 与未来的 Worker 共用），响应先经 Zod 校验。
+- `sources` 只允许读取父报告属于 `auth.uid()` 的行；所有写入走服务端 service role 客户端（`lib/supabase/admin.ts`）。
+- 状态：搜索成功后报告回到 `queued`（progress 20）等待提取，不引入新状态；失败为 `failed` + `error_message`。
+
 ---
 
 ## 5. 后续阶段的数据流（设计约束）
@@ -208,7 +214,7 @@ Worker
 | 构建 | `next build` | App Router 路由、Server/Client 边界、环境变量 |
 | 端到端 | 待接入 Playwright | 真实 Supabase 注册 / 登录 / 重置密码 |
 
-Phase 1–2 的 73 个单元测试集中在纯函数与边界条件，避免依赖网络或数据库。
+Phase 1–3 的 101 个单元测试（web 75 + scrapegraph 26）集中在纯函数与边界条件，避免依赖网络或数据库。
 
 ---
 

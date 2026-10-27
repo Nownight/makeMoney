@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { logEvent, logError } from "@/lib/logger";
+import { runSourceSearch } from "@/lib/reports/search-pipeline";
 import { clampSourceLimit, createReportSchema } from "@/lib/reports/validation";
 import type { ReportStatus } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -18,8 +19,9 @@ export type CreateReportResult =
 
 /**
  * Single code path for creating a report, shared by POST /api/reports and the
- * dashboard Server Action. Phase 2 only inserts a queued row: no credits are
- * deducted and no research is started.
+ * dashboard Server Action. Inserts a queued row, then (Phase 3, temporary
+ * until the worker) runs the source search synchronously. No credits are
+ * deducted yet.
  */
 export async function createReportForCurrentUser(
   rawInput: unknown,
@@ -76,5 +78,13 @@ export async function createReportForCurrentUser(
     sourceLimit,
   });
 
-  return { ok: true, id: data.id, status: data.status };
+  await runSourceSearch({ id: data.id, query: parsed.data.query, sourceLimit });
+
+  const { data: latest } = await supabase
+    .from("reports")
+    .select("status")
+    .eq("id", data.id)
+    .maybeSingle();
+
+  return { ok: true, id: data.id, status: latest?.status ?? data.status };
 }

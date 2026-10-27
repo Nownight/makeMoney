@@ -43,8 +43,27 @@ export type ReportRow = {
   analysis_json: Json | null;
   visualization_json: Json | null;
   is_paid: boolean;
+  error_message: string | null;
   created_at: string;
   completed_at: string | null;
+};
+
+export type SourceStatus = "found" | "extracted" | "partial" | "failed" | "filtered";
+
+export type SourceRow = {
+  id: string;
+  report_id: string;
+  url: string;
+  title: string | null;
+  domain: string;
+  snippet: string | null;
+  published_at: string | null;
+  search_rank: number | null;
+  status: SourceStatus;
+  quality_score: number | null;
+  raw_metadata: Json | null;
+  fetched_at: string | null;
+  created_at: string;
 };
 
 export type Database = {
@@ -85,6 +104,7 @@ export type Database = {
           analysis_json?: Json | null;
           visualization_json?: Json | null;
           is_paid?: boolean;
+          error_message?: string | null;
           created_at?: string;
           completed_at?: string | null;
         };
@@ -96,9 +116,46 @@ export type Database = {
           analysis_json?: Json | null;
           visualization_json?: Json | null;
           is_paid?: boolean;
+          error_message?: string | null;
           completed_at?: string | null;
         };
         Relationships: [];
+      };
+      sources: {
+        Row: SourceRow;
+        Insert: {
+          id?: string;
+          report_id: string;
+          url: string;
+          title?: string | null;
+          domain: string;
+          snippet?: string | null;
+          published_at?: string | null;
+          search_rank?: number | null;
+          status?: SourceStatus;
+          quality_score?: number | null;
+          raw_metadata?: Json | null;
+          fetched_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          title?: string | null;
+          snippet?: string | null;
+          published_at?: string | null;
+          status?: SourceStatus;
+          quality_score?: number | null;
+          raw_metadata?: Json | null;
+          fetched_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sources_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "reports";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
