@@ -77,3 +77,39 @@ describe("createScrapeGraphClient.search", () => {
     expect(shape.fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("createScrapeGraphClient.extract", () => {
+  const params = { url: "https://example.com/pricing", prompt: "p", schema: { type: "object" } };
+
+  it("posts url, prompt and schema to /extract", async () => {
+    const { client, fetchMock } = setup([
+      jsonResponse({ id: "x", raw: null, json: { products: [] }, usage: {}, metadata: {} }),
+    ]);
+
+    const result = await client.extract(params);
+
+    expect(result.json).toEqual({ products: [] });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://v2-api.scrapegraphai.com/api/extract");
+    expect(JSON.parse(String(init?.body))).toMatchObject(params);
+  });
+
+  it("retries 5xx then succeeds", async () => {
+    const { client, fetchMock, sleep } = setup([
+      jsonResponse({}, 502),
+      jsonResponse({ json: { products: [] } }),
+    ]);
+    await expect(client.extract(params)).resolves.toMatchObject({ json: { products: [] } });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
+  it("does not retry 4xx and rejects bad envelopes", async () => {
+    const a = setup([jsonResponse({}, 402)]);
+    await expect(a.client.extract(params)).rejects.toMatchObject({ status: 402, retryable: false });
+    expect(a.fetchMock).toHaveBeenCalledTimes(1);
+
+    const b = setup([jsonResponse({ nope: true })]);
+    await expect(b.client.extract(params)).rejects.toBeInstanceOf(ScrapeGraphError);
+  });
+});

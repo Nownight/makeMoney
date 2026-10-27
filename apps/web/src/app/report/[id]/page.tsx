@@ -17,6 +17,7 @@ import {
   reportStatusLabel,
   reportStatusVariant,
 } from "@/lib/reports/status";
+import { sourceStatusBadge, toProductRows } from "@/lib/reports/products";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -61,11 +62,21 @@ export default async function ReportPage({
 
   const { data: sources } = await supabase
     .from("sources")
-    .select("id, url, title, domain, snippet, search_rank, quality_score")
+    .select("id, url, title, domain, snippet, search_rank, quality_score, status")
     .eq("report_id", report.id)
     .order("quality_score", { ascending: false, nullsFirst: false })
     .order("search_rank", { ascending: true });
 
+  const { data: items } = await supabase
+    .from("extracted_items")
+    .select("id, source_id, normalized_data")
+    .eq("report_id", report.id)
+    .order("created_at", { ascending: true });
+
+  const products = toProductRows(items ?? [], sources ?? []);
+  const sourceCount = sources?.length ?? 0;
+  const extractedCount = sources?.filter((s) => s.status === "extracted").length ?? 0;
+  const extractionDone = sources?.some((s) => s.status !== "found") ?? false;
   const progress = clampProgress(report.progress);
 
   return (
@@ -122,13 +133,68 @@ export default async function ReportPage({
             </div>
           ) : (
             <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              {sources && sources.length > 0
-                ? "来源已就绪，等待下一阶段处理。数据提取、分析与可视化将在后续阶段接入。"
-                : "报告已创建并进入队列。来源搜索完成后会在此页面展示。"}
+              {extractionDone
+                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源。数据已提取并归一化，等待分析阶段（即将上线）。`
+                : sourceCount > 0
+                  ? "来源已就绪，正在提取结构化数据…"
+                  : "报告已创建并进入队列。来源搜索完成后会在此页面展示。"}
             </p>
           )}
         </CardContent>
       </Card>
+
+      {products.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>产品概览</CardTitle>
+            <CardDescription>
+              共提取 {products.length} 个产品，成功分析 {extractedCount} / {sourceCount} 个来源。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr className="border-b">
+                  <th className="py-2 pr-4 font-medium">产品</th>
+                  <th className="py-2 pr-4 font-medium">公司</th>
+                  <th className="py-2 pr-4 font-medium">最低价格</th>
+                  <th className="py-2 pr-4 font-medium">免费版</th>
+                  <th className="py-2 pr-4 font-medium">功能数</th>
+                  <th className="py-2 font-medium">来源</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {products.map((product) => (
+                  <tr key={product.id}>
+                    <td className="py-2 pr-4 font-medium">{product.name}</td>
+                    <td className="py-2 pr-4">{product.company ?? "—"}</td>
+                    <td className="py-2 pr-4">{product.cheapest}</td>
+                    <td className="py-2 pr-4">
+                      {product.freePlan === null ? "未知" : product.freePlan ? "有" : "无"}
+                    </td>
+                    <td className="py-2 pr-4">{product.featureCount}</td>
+                    <td className="py-2">
+                      {product.sourceUrl ? (
+                        <a
+                          href={product.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs hover:underline"
+                        >
+                          {product.sourceDomain}
+                          <ExternalLink className="size-3 text-muted-foreground" />
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {sources && sources.length > 0 ? (
         <Card>
@@ -150,6 +216,9 @@ export default async function ReportPage({
                     <ExternalLink className="size-3.5 text-muted-foreground" />
                   </a>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <Badge variant={sourceStatusBadge(source.status).variant}>
+                      {sourceStatusBadge(source.status).label}
+                    </Badge>
                     <span>{source.domain}</span>
                     {source.search_rank !== null ? (
                       <span>搜索排名 #{source.search_rank}</span>

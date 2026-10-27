@@ -4,6 +4,7 @@ import {
   type FilteredSource,
 } from "@research/scrapegraph";
 
+import { runExtraction } from "@/lib/reports/extract-pipeline";
 import { logError, logEvent } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,9 +24,10 @@ type ReportForSearch = {
 /**
  * Temporary synchronous pipeline until the Phase 7 worker exists.
  *
- * queued -> searching (10) -> on success: back to queued (20) with sources
- * saved, i.e. "waiting for the next stage" (extraction lands in Phase 4).
- * On API error or < 2 usable sources: failed + error_message.
+ * queued -> searching (10) -> extracting (20..65) -> normalizing (70) ->
+ * back to queued (70), i.e. "waiting for analysis" (Phase 5).
+ * On search API error, < 2 usable sources or no source extracted:
+ * failed + error_message.
  *
  * Never throws: every failure is recorded on the report and logged.
  */
@@ -67,9 +69,9 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
     .update({ status: "searching", progress: 10, error_message: null })
     .eq("id", report.id);
 
+  const client = createScrapeGraphClient({ apiKey });
   let sources: FilteredSource[];
   try {
-    const client = createScrapeGraphClient({ apiKey });
     const response = await client.search({
       query: report.query,
       numResults: searchResultCount(report.sourceLimit),
@@ -93,7 +95,7 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
   }
 
   const fetchedAt = new Date().toISOString();
-  const { error: insertError } = await admin.from("sources").insert(
+  const { data: inserted, error: insertError } = await admin.from("sources").insert(
     sources.map((source) => ({
       report_id: report.id,
       url: source.url,
@@ -105,17 +107,12 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
       fetched_at: fetchedAt,
       raw_metadata: { provider: "scrapegraphai" },
     })),
-  );
+  ).select("id, url");
 
-  if (insertError) {
-    await fail("保存来源失败，请稍后重试", insertError.message);
+  if (insertError || !inserted) {
+    await fail("保存来源失败，请稍后重试", insertError?.message);
     return;
   }
-
-  await admin
-    .from("reports")
-    .update({ status: "queued", progress: 20 })
-    .eq("id", report.id);
 
   logEvent("info", "report.search.completed", {
     reportId: report.id,
@@ -123,4 +120,16 @@ export async function runSourceSearch(report: ReportForSearch): Promise<void> {
     sourceCount: sources.length,
     durationMs: Date.now() - startedAt,
   });
+
+  const summary = await runExtraction(admin, client, report.id, inserted);
+
+  if (summary.extracted === 0) {
+    await fail("未能从任何来源提取到数据，请稍后重试");
+    return;
+  }
+
+  await admin
+    .from("reports")
+    .update({ status: "queued", progress: 70 })
+    .eq("id", report.id);
 }

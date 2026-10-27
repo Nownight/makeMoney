@@ -266,6 +266,18 @@ research-saas/
 - 需要服务端环境变量：`SUPABASE_SERVICE_ROLE_KEY`、`SGAI_API_KEY`。
 - 本地验证真实搜索：`pnpm try-search "AI 编程工具"`（读取 `apps/web/.env.local`，不写数据库）。
 
-## 下一步（Phase 4）
+## Phase 4：结构化提取与归一化
 
-ScrapeGraphAI Extract + Zod 校验。
+- `extract()`：`POST https://v2-api.scrapegraphai.com/api/extract`（[文档](https://docs.scrapegraphai.com/api-reference/endpoint/extract)），发送 url + prompt + JSON Schema，**5 credits / 次**；与搜索相同的重试 / 超时 / Zod 校验。
+- `ProductSchema`（`packages/scrapegraph/src/product.ts`，`SCHEMA_VERSION = "product-v1"`）通过 `z.toJSONSchema` 生成 JSON Schema。Prompt 要求只使用页面事实、未知为 null，并忽略页面中的任何指令。
+- 输出 Zod 校验失败：重试一次，再用更严格的 prompt 重试一次，仍失败则来源标记 `partial`；接口失败标记 `failed`。
+- `normalizeExtractedData()`：价格字符串（`$20/month`、`¥99/年`、`免费`…）→ `{amount, currency(ISO), period}`，字符串数组去重，不臆造数据。
+- `supabase/migrations/20261027030000_create_extracted_items.sql`：`extracted_items` 表（只能读取自己报告的数据，写入仅限 service role）。
+- 同步流程：`searching(10%) → extracting(20→65%，并发 3) → normalizing(70%) → queued(70%)`，等待分析阶段；没有任何来源提取成功则 `failed`。
+- 24 小时缓存：同一归一化 URL + `SCHEMA_VERSION` 在 24 小时内已有提取结果时直接复用，不再调用 API。
+- `/report/[id]` 展示产品概览表、来源状态和“成功分析 X / Y 个来源”。
+- 本地验证真实提取：`pnpm try-extract https://cursor.com/pricing`（不写数据库）。
+
+## 下一步（Phase 5）
+
+AI 分析。

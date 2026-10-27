@@ -66,6 +66,18 @@ export type SourceRow = {
   created_at: string;
 };
 
+export type ExtractedItemRow = {
+  id: string;
+  report_id: string;
+  source_id: string;
+  entity_name: string;
+  entity_type: string;
+  normalized_data: Json;
+  confidence: number | null;
+  schema_version: string;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -153,6 +165,42 @@ export type Database = {
             columns: ["report_id"];
             isOneToOne: false;
             referencedRelation: "reports";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      extracted_items: {
+        Row: ExtractedItemRow;
+        Insert: {
+          id?: string;
+          report_id: string;
+          source_id: string;
+          entity_name: string;
+          entity_type?: string;
+          normalized_data: Json;
+          confidence?: number | null;
+          schema_version: string;
+          created_at?: string;
+        };
+        Update: {
+          entity_name?: string;
+          entity_type?: string;
+          normalized_data?: Json;
+          confidence?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "extracted_items_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "reports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "extracted_items_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "sources";
             referencedColumns: ["id"];
           },
         ];

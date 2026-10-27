@@ -27,3 +27,15 @@ export const searchResponseSchema = z.object({
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+
+/**
+ * Response of POST https://v2-api.scrapegraphai.com/api/extract
+ * Docs: https://docs.scrapegraphai.com/api-reference/endpoint/extract
+ */
+export const extractResponseSchema = z.object({
+  id: z.string().optional(),
+  json: z.unknown().nullable(),
+  raw: z.string().nullish(),
+});
+
+export type ExtractResponse = z.infer<typeof extractResponseSchema>;

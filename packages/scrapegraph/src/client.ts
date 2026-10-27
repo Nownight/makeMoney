@@ -1,4 +1,11 @@
-import { searchResponseSchema, type SearchResponse } from "./schema";
+import type { z } from "zod";
+
+import {
+  extractResponseSchema,
+  searchResponseSchema,
+  type ExtractResponse,
+  type SearchResponse,
+} from "./schema";
 
 /**
  * Minimal server-only adapter for the ScrapeGraphAI managed API (v2).
@@ -21,6 +28,13 @@ export type SearchParams = {
   query: string;
   /** 1..20, per the API. */
   numResults: number;
+};
+
+export type ExtractParams = {
+  url: string;
+  prompt: string;
+  /** JSON Schema the LLM output is constrained to. */
+  schema: Record<string, unknown>;
 };
 
 export type ScrapeGraphClientOptions = {
@@ -53,23 +67,21 @@ export function createScrapeGraphClient(options: ScrapeGraphClientOptions) {
   const fetchImpl = options.fetch ?? fetch;
   const sleep = options.sleep ?? defaultSleep;
 
-  async function searchOnce(params: SearchParams): Promise<SearchResponse> {
+  async function postOnce<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    schema: z.ZodType<T>,
+  ): Promise<T> {
     let response: Response;
 
     try {
-      response = await fetchImpl(`${baseUrl}/search`, {
+      response = await fetchImpl(`${baseUrl}${path}`, {
         method: "POST",
         headers: {
           "SGAI-APIKEY": options.apiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          query: params.query,
-          numResults: Math.min(20, Math.max(1, params.numResults)),
-          format: "markdown",
-          // HTML only: PDFs cost extra credits per processed page.
-          allowedTypes: ["text/html"],
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
@@ -79,7 +91,7 @@ export function createScrapeGraphClient(options: ScrapeGraphClientOptions) {
 
     if (!response.ok) {
       throw new ScrapeGraphError(
-        `search failed with HTTP ${response.status}`,
+        `${path} failed with HTTP ${response.status}`,
         response.status,
         isRetryableStatus(response.status),
       );
@@ -92,7 +104,7 @@ export function createScrapeGraphClient(options: ScrapeGraphClientOptions) {
       throw new ScrapeGraphError("invalid JSON response", response.status, false);
     }
 
-    const parsed = searchResponseSchema.safeParse(body);
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       throw new ScrapeGraphError("unexpected response shape", response.status, false);
     }
@@ -100,24 +112,61 @@ export function createScrapeGraphClient(options: ScrapeGraphClientOptions) {
     return parsed.data;
   }
 
-  return {
-    /** Runs a search with up to 2 retries (2s, 5s) on network/429/5xx errors. */
-    async search(params: SearchParams): Promise<SearchResponse> {
-      for (let attempt = 0; ; attempt += 1) {
-        try {
-          return await searchOnce(params);
-        } catch (error) {
-          const delay = RETRY_DELAYS_MS[attempt];
-          if (
-            !(error instanceof ScrapeGraphError) ||
-            !error.retryable ||
-            delay === undefined
-          ) {
-            throw error;
-          }
-          await sleep(delay);
+  /** Up to 2 retries (2s, 5s) on network/408/429/5xx errors. */
+  async function post<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    schema: z.ZodType<T>,
+  ): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await postOnce(path, payload, schema);
+      } catch (error) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        if (
+          !(error instanceof ScrapeGraphError) ||
+          !error.retryable ||
+          delay === undefined
+        ) {
+          throw error;
         }
+        await sleep(delay);
       }
+    }
+  }
+
+  return {
+    search(params: SearchParams): Promise<SearchResponse> {
+      return post(
+        "/search",
+        {
+          query: params.query,
+          numResults: Math.min(20, Math.max(1, params.numResults)),
+          format: "markdown",
+          // HTML only: PDFs cost extra credits per processed page.
+          allowedTypes: ["text/html"],
+        },
+        searchResponseSchema,
+      );
+    },
+
+    /**
+     * POST /api/extract with a prompt + JSON schema (5 credits per call).
+     * Docs: https://docs.scrapegraphai.com/api-reference/endpoint/extract
+     * Pricing: https://docs.scrapegraphai.com/services/extract#pricing
+     * Only the transport envelope is validated here; callers validate `json`.
+     */
+    extract(params: ExtractParams): Promise<ExtractResponse> {
+      return post(
+        "/extract",
+        {
+          url: params.url,
+          prompt: params.prompt,
+          schema: params.schema,
+          allowedTypes: ["text/html"],
+        },
+        extractResponseSchema,
+      );
     },
   };
 }

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "try-search": "tsx scripts/try-search.mts"
+    "try-search": "tsx scripts/try-search.mts",
+    "try-extract": "tsx scripts/try-extract.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.1",
