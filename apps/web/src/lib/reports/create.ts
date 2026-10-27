@@ -62,7 +62,7 @@ export async function createReportForCurrentUser(
       source_limit: sourceLimit,
       language: parsed.data.language ?? null,
     })
-    .select("id, status")
+    .select("id, status, created_at")
     .single();
 
   if (error || !data) {
@@ -78,7 +78,12 @@ export async function createReportForCurrentUser(
     sourceLimit,
   });
 
-  await runSourceSearch({ id: data.id, query: parsed.data.query, sourceLimit });
+  await runSourceSearch({
+    id: data.id,
+    query: parsed.data.query,
+    sourceLimit,
+    createdAt: data.created_at,
+  });
 
   const { data: latest } = await supabase
     .from("reports")
