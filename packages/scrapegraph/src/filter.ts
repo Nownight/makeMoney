@@ -1,3 +1,4 @@
+import { looksBlocked } from "./blocked";
 import type { SearchResult } from "./schema";
 
 export type FilteredSource = {
@@ -142,7 +143,7 @@ export function filterSources(
 
   results.forEach((result, index) => {
     const url = normalizeUrl(result.url);
-    if (!url || seen.has(url) || isJunkUrl(url)) return;
+    if (!url || seen.has(url) || isJunkUrl(url) || looksBlocked(result.content)) return;
     seen.add(url);
 
     const searchRank = index + 1;

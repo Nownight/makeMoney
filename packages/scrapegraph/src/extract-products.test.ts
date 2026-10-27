@@ -47,3 +47,29 @@ describe("extractProducts", () => {
     });
   });
 });
+
+describe("extractProducts blocked pages", () => {
+  it("fails without retrying when raw output shows a blocked page", async () => {
+    const extract = vi.fn<ScrapeGraphClient["extract"]>().mockResolvedValue({
+      json: { products: [] },
+      raw: '{"error":{"message":"您当前请求存在异常，暂时限制本次访问","code":40362}}',
+    });
+    const result = await extractProducts({ search: vi.fn(), extract }, "https://zhihu.com/q");
+    expect(result).toMatchObject({ status: "failed", attempts: 1 });
+    expect(extract).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails when the returned json itself is an error object", async () => {
+    const extract = vi.fn<ScrapeGraphClient["extract"]>().mockResolvedValue({
+      json: { error: { message: "Access Denied", code: 403 } },
+    });
+    expect(await extractProducts({ search: vi.fn(), extract }, "https://a.com")).toMatchObject({
+      status: "failed",
+    });
+  });
+
+  it("keeps real products even if raw mentions captcha", async () => {
+    const { client } = clientWith({ products: [validProduct] });
+    expect((await extractProducts(client, "https://a.com")).status).toBe("extracted");
+  });
+});

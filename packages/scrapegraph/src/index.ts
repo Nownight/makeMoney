@@ -47,3 +47,4 @@ export {
   type ExtractionResult,
   type Product,
 } from "./product";
+export { hasBlockedMarkers, looksBlocked, MIN_CONTENT_LENGTH } from "./blocked";

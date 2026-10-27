@@ -215,7 +215,7 @@ Worker
 | 构建 | `next build` | App Router 路由、Server/Client 边界、环境变量 |
 | 端到端 | 待接入 Playwright | 真实 Supabase 注册 / 登录 / 重置密码 |
 
-Phase 1–5 的 150 个单元测试（web 84 + scrapegraph 53 + llm 13）集中在纯函数与边界条件，避免依赖网络或数据库。
+Phase 1–5 的 167 个单元测试（web 87 + scrapegraph 67 + llm 13）集中在纯函数与边界条件，避免依赖网络或数据库。
 
 ---
 

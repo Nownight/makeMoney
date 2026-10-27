@@ -1,3 +1,4 @@
+import { hasBlockedMarkers } from "./blocked";
 import { ScrapeGraphError, type ScrapeGraphClient } from "./client";
 import { normalizeExtractedData, type NormalizedProduct } from "./normalize";
 import {
@@ -28,10 +29,12 @@ export async function extractProducts(
   for (const prompt of ATTEMPT_PROMPTS) {
     attempts += 1;
     let json: unknown;
+    let raw = "";
 
     try {
       const response = await client.extract({ url, prompt, schema: EXTRACTION_JSON_SCHEMA });
       json = response.json;
+      raw = response.raw ?? "";
     } catch (error) {
       const reason =
         error instanceof ScrapeGraphError || error instanceof Error ? error.message : String(error);
@@ -39,6 +42,11 @@ export async function extractProducts(
     }
 
     const parsed = extractionResultSchema.safeParse(json);
+    const empty = !parsed.success || parsed.data.products.length === 0;
+    // Blocked/error pages: no point retrying, and never count as extracted.
+    if (empty && (hasBlockedMarkers(raw) || (!parsed.success && hasBlockedMarkers(JSON.stringify(json ?? ""))))) {
+      return { status: "failed", attempts, reason: "page looks blocked (anti-bot or error page)" };
+    }
     if (parsed.success) {
       return {
         status: "extracted",

@@ -31,3 +31,34 @@ export function clampProgress(progress: number): number {
   if (!Number.isFinite(progress)) return 0;
   return Math.min(100, Math.max(0, Math.round(progress)));
 }
+
+/**
+ * Honest status line for the report page (non-failed reports). A queued
+ * report with progress > 0 was left behind by an older pipeline version and
+ * will not continue on its own.
+ */
+export function reportStatusMessage(input: {
+  status: string;
+  progress: number;
+  extractedCount: number;
+  sourceCount: number;
+}): string {
+  const counts = `${input.extractedCount} / ${input.sourceCount}`;
+  switch (input.status) {
+    case "completed":
+      return `成功分析 ${counts} 个来源。图表可视化即将上线。`;
+    case "analyzing":
+      return `成功提取 ${counts} 个来源，正在进行 AI 分析…`;
+    case "extracting":
+    case "normalizing":
+      return "来源已就绪，正在提取结构化数据…";
+    case "searching":
+      return "正在搜索数据来源…";
+    case "queued":
+      return input.progress > 0
+        ? "分析未完成（报告由旧版本流程创建），请重新创建报告。"
+        : "报告已创建并进入队列。来源搜索完成后会在此页面展示。";
+    default:
+      return "报告处理中…";
+  }
+}

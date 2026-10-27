@@ -16,6 +16,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import {
   clampProgress,
   reportStatusLabel,
+  reportStatusMessage,
   reportStatusVariant,
 } from "@/lib/reports/status";
 import { sourceStatusBadge, toProductRows } from "@/lib/reports/products";
@@ -77,7 +78,6 @@ export default async function ReportPage({
   const products = toProductRows(items ?? [], sources ?? []);
   const sourceCount = sources?.length ?? 0;
   const extractedCount = sources?.filter((s) => s.status === "extracted").length ?? 0;
-  const extractionDone = sources?.some((s) => s.status !== "found") ?? false;
   const progress = clampProgress(report.progress);
   const parsedAnalysis = reportAnalysisSchema.safeParse(report.analysis_json);
   const analysis = parsedAnalysis.success ? parsedAnalysis.data : null;
@@ -137,13 +137,12 @@ export default async function ReportPage({
             </div>
           ) : (
             <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              {report.status === "completed"
-                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源。图表可视化即将上线。`
-                : extractionDone
-                ? `成功分析 ${extractedCount} / ${sourceCount} 个来源，正在进行 AI 分析…`
-                : sourceCount > 0
-                  ? "来源已就绪，正在提取结构化数据…"
-                  : "报告已创建并进入队列。来源搜索完成后会在此页面展示。"}
+              {reportStatusMessage({
+                status: report.status,
+                progress,
+                extractedCount,
+                sourceCount,
+              })}
             </p>
           )}
         </CardContent>

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { filterSources, isJunkUrl, normalizeUrl, scoreSource, toSnippet } from "./filter";
 import type { SearchResult } from "./schema";
 
-const result = (url: string, title = "T", content = "body"): SearchResult => ({ url, title, content });
+const result = (url: string, title = "T", content = "A normal product page body with enough descriptive text to pass."): SearchResult => ({ url, title, content });
 
 describe("normalizeUrl", () => {
   it("strips hash, trailing slash and utm_* params", () => {
@@ -100,5 +100,20 @@ describe("filterSources", () => {
 
   it("falls back to the domain when the title is empty", () => {
     expect(filterSources([result("https://a.com", "  ")], "q", 5)[0].title).toBe("a.com");
+  });
+});
+
+describe("filterSources blocked content", () => {
+  it("drops results whose content looks blocked", () => {
+    const kept = filterSources(
+      [
+        result("https://zhihu.com/q/1", "知乎", '{"error":{"message":"您当前请求存在异常，暂时限制本次访问","code":40362}}'),
+        result("https://a.com/x"),
+        result("https://b.com/y", "T", "Just a moment..."),
+      ],
+      "q",
+      5,
+    );
+    expect(kept.map((s) => s.url)).toEqual(["https://a.com/x"]);
   });
 });
